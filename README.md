@@ -1,4 +1,4 @@
-# {{REPO_NAME}}
+# extract-summit-26-browser-workshop
 
 > Created from **zyte-service-template** by the Zyte repo governance portal.
 
