@@ -1,0 +1,4 @@
+playwright>=1.48
+anthropic>=0.60
+python-dotenv>=1.0
+markdownify>=0.13
