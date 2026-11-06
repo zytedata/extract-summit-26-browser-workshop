@@ -35,14 +35,23 @@ Do this before the workshop if you can. Conference wifi is not your friend.
 
 You don't need to install a browser to run the lessons. The browser runs on Zyte's side, your script just connects to it.
 
-### 2. Get the code
+### 2. Unlock the browser on your Zyte account
+
+The Zyte browser needs a verified business account. Two things, both in https://app.zyte.com:
+
+1. **A paid plan.** Pay as you go, or a subscription. Pay as you go is enough for the workshop: you only pay for what you use, and a full run of every lesson costs a few dollars at most.
+2. **A short form about your business.** Company name, what you'll use the browser for, that kind of thing. It's reviewed by Zyte, so don't leave it for the morning of the workshop.
+
+Once the review is done, Browser CDP works with your normal Zyte API key. Step 6 below checks it.
+
+### 3. Get the code
 
 ```bash
 git clone https://github.com/zytedata/extract-summit-26-browser-workshop.git
 cd extract-summit-26-browser-workshop
 ```
 
-### 3. Install
+### 4. Install
 
 ```bash
 python -m venv .venv
@@ -52,7 +61,7 @@ pip install -r requirements.txt
 
 If you use uv: `uv venv && uv pip install -r requirements.txt`.
 
-### 4. Add your keys
+### 5. Add your keys
 
 ```bash
 cp .env.example .env
@@ -60,7 +69,7 @@ cp .env.example .env
 
 Open `.env` and fill in `ZYTE_API_KEY` and `OPENROUTER_API_KEY`. `OPENROUTER_MODEL` is optional, the default is `anthropic/claude-haiku-5.5`. Any model that reads images works. A `.env.local` works too, and wins if you have both.
 
-### 5. Check it works
+### 6. Check it works
 
 ```bash
 python lessons/00-setup/check.py
@@ -78,7 +87,7 @@ session closed. You're ready.
 
 The IP is not yours. That's the Zyte browser.
 
-### 6. Trace viewer (optional)
+### 7. Trace viewer (optional)
 
 Lessons 03 to 05 record each browser session as a Playwright trace you can replay step by step. Two ways to open one:
 
@@ -88,7 +97,7 @@ Lessons 03 to 05 record each browser session as a Playwright trace you can repla
 ### Troubleshooting
 
 - `ZYTE_API_KEY is not set` - the `.env` file is missing or the key line is empty.
-- `401` or `403` when connecting - check the key, and that Browser CDP is enabled on your Zyte account.
+- `401` or `403` when connecting - check the key, and that your account has a paid plan and the business form is approved (step 2).
 - Hangs on connect - corporate VPN or proxy blocking websockets. Try without the VPN.
 - `429` when connecting - you have as many browsers open as your Zyte account allows. Wait for one to finish.
 - `OPENROUTER_API_KEY is not set` or `OpenRouter said 401` - the key is missing or wrong in `.env`.
