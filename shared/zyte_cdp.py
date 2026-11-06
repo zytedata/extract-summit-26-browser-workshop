@@ -9,11 +9,12 @@ import base64
 import os
 from contextlib import contextmanager
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from playwright.sync_api import sync_playwright
 
-load_dotenv(".env.local")  # wins if both exist
-load_dotenv()
+# Found from the repo, wherever you run the script from. .env.local wins if both exist.
+load_dotenv(find_dotenv(".env.local"))
+load_dotenv(find_dotenv(".env"))
 
 CDP_ENDPOINT = "https://browser.zyte.com/"
 

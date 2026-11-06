@@ -17,10 +17,11 @@ import time
 import urllib.error
 import urllib.request
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
-load_dotenv(".env.local")  # wins if both exist
-load_dotenv()
+# Found from the repo, wherever you run the script from. .env.local wins if both exist.
+load_dotenv(find_dotenv(".env.local"))
+load_dotenv(find_dotenv(".env"))
 
 URL = "https://openrouter.ai/api/v1/chat/completions"
 DEFAULT_MODEL = "anthropic/claude-haiku-5.5"

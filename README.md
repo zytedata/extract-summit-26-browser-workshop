@@ -18,7 +18,7 @@ About 100 lines of Python you can read end to end and take home.
 | 05 | [Explore competitors](lessons/05-explore-competitors/) | Run your agent on the competitor list, a few sessions in parallel | 15 min |
 | 06 | [Report](lessons/06-report/) | Turn the captured pages into a pricing comparison | 10 min |
 
-Each lesson folder has a README, a starter file and a `solution/` folder if you get stuck. Lessons build on each other, but you can start any lesson from the previous solution.
+No coding needed. Each lesson has a README and a script you run: it explains a step, you run it, you look at the output. Read the scripts if you want to see how it's done, they're short.
 
 ## Setup
 
@@ -26,7 +26,7 @@ Do this before the workshop if you can. Conference wifi is not your friend.
 
 ### 1. What you need
 
-- Python 3.10 or newer
+- Python 3.10 or newer (3.12 recommended, that's what the workshop is tested on)
 - git
 - A Zyte account with an API key: https://app.zyte.com
 - An OpenRouter API key: https://openrouter.ai/keys. One key for many models (Claude, Gemini, GPT, ...)
