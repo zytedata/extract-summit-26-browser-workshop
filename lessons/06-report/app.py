@@ -76,7 +76,9 @@ def dashboard():
     if runs.empty:
         st.info("No runs yet.")
         return
-    run = runs.iloc[0] if follow else runs.iloc[labels.index(picked)]
+    # Pick by id, not by position: a new run may have started since the
+    # sidebar was drawn, which shifts every position by one.
+    run = runs.iloc[0] if follow else runs[runs.run_id == picked.split(" · ")[0]].iloc[0]
     agents = query("SELECT * FROM agents WHERE run_id=? ORDER BY started", (run.run_id,))
     prices = query("SELECT * FROM prices WHERE run_id=?", (run.run_id,))
 

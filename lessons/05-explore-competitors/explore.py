@@ -82,6 +82,7 @@ def live(args, db):
                     # The log only sits next to the journey once the agent has
                     # made its folder (it wipes it at the start).
                     src = os.path.join(OUT, sites[name] + ".log")
+                    os.makedirs(os.path.join(OUT, sites[name]), exist_ok=True)  # if it died before making it
                     os.replace(src, os.path.join(OUT, sites[name], "agent.log"))
                     row = db.execute("SELECT status FROM agents WHERE run_id=? AND site=?", (run_id, sites[name])).fetchone()
                     if proc.returncode and not row["status"].startswith(FINISHED):
