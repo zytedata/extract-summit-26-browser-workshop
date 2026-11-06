@@ -3,6 +3,11 @@
 Playwright's browser.close() only disconnects. The Zyte session keeps running
 (and billing) until ttl. So we send Browser.close over CDP when we're done.
 ttl is the safety net if the script crashes.
+
+With trace="path/trace.zip" the whole session is recorded with Playwright
+tracing: a filmstrip, the page (DOM) before and after every action, network
+and console. Replay it with `playwright show-trace path/trace.zip`, or drop
+the file on https://trace.playwright.dev (it stays in your browser).
 """
 
 import base64
@@ -39,17 +44,36 @@ def connect_url(ttl=120, proxy_type=None, proxy_region=None):
 
 
 @contextmanager
-def zyte_page(ttl=120, proxy_type=None, proxy_region=None):
+def zyte_page(ttl=120, proxy_type=None, proxy_region=None, trace=None):
     """Yield a Playwright page running in a Zyte browser."""
     with sync_playwright() as p:
         url = connect_url(ttl, proxy_type, proxy_region)
         browser = p.chromium.connect_over_cdp(url, headers=auth_headers())
         context = browser.contexts[0] if browser.contexts else browser.new_context()
+        if trace:
+            context.tracing.start(screenshots=True, snapshots=True)
         page = context.new_page()
         try:
             yield page
         finally:
+            if trace:  # save it before closing, also when the script crashed
+                try:
+                    os.makedirs(os.path.dirname(trace) or ".", exist_ok=True)
+                    context.tracing.stop(path=trace)
+                except Exception as e:
+                    print(f"could not save the trace: {e}")
             try:
                 page.context.new_cdp_session(page).send("Browser.close")
             except Exception:
                 pass  # already gone, ttl will clean up
+
+
+@contextmanager
+def trace_step(page, title):
+    """Group what happens inside under one title in the trace viewer.
+    Does nothing visible when the session isn't traced."""
+    page.context.tracing.group(title)
+    try:
+        yield
+    finally:
+        page.context.tracing.group_end()

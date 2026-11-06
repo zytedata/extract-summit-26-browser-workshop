@@ -61,6 +61,17 @@ Files in `output/03/<site>/`:
 | `links.txt` | the numbered links the model picked from |
 | `request.json` | the message sent to the model, image left out |
 | `answer.json` | the answer, plus model, time, tokens, cost |
+| `trace.zip` | the browser session, recorded with Playwright tracing |
+
+## Replay the session
+
+The browser session is recorded with Playwright tracing. Open it with:
+
+```bash
+playwright show-trace output/03/apify.com/trace.zip
+```
+
+Or drop the file on [trace.playwright.dev](https://trace.playwright.dev), it stays in your browser. You get a filmstrip of what the browser showed, every action with the page (the DOM) before and after it, the network requests and the console. Click "Go to" and look at the requests: that's everything the page pulled in while loading. None of it went through your laptop.
 
 ## Try
 

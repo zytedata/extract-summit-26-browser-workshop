@@ -12,12 +12,15 @@ from markdownify import markdownify
 
 NOISE = ["script", "style", "noscript", "svg", "iframe", "template"]
 
-# Runs inside the browser. Visible links and buttons only.
+# Runs inside the browser. Visible links and buttons only. Each one we keep
+# gets a data-agent-n attribute with its number, so "click 7" can find it
+# again later with the selector [data-agent-n="7"].
 LINKS_JS = """
 () => {
+  document.querySelectorAll('[data-agent-n]').forEach(el => el.removeAttribute('data-agent-n'));
   const seen = new Set();
   const out = [];
-  for (const el of document.querySelectorAll('a[href], button, [role=button]')) {
+  for (const el of document.querySelectorAll('a[href], button, [role=button], [role=tab], [role=switch]')) {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
     const text = (el.innerText || el.getAttribute('aria-label') || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
@@ -26,6 +29,7 @@ LINKS_JS = """
     if (!text || seen.has(key)) continue;
     seen.add(key);
     out.push({tag: el.tagName.toLowerCase(), text, href});
+    el.setAttribute('data-agent-n', out.length);
   }
   return out;
 }

@@ -21,10 +21,9 @@ from urllib.parse import urlparse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from shared import llm  # noqa: E402
+from shared.companies import pick_url  # noqa: E402
 from shared.capture import format_links, get_links, to_markdown  # noqa: E402
-from shared.zyte_cdp import zyte_page  # noqa: E402
-
-COMPANIES = os.path.join(os.path.dirname(__file__), "..", "..", "data", "web-scraping.json")
+from shared.zyte_cdp import trace_step, zyte_page  # noqa: E402
 
 # Keep what we send small. Long pages get cut, and we say so.
 MAX_MARKDOWN = 30_000  # characters, about 7-8k tokens
@@ -83,18 +82,6 @@ OPEN = f"{GREEN}[browser OPEN]{RESET}"
 CLOSED = f"{GREY}[browser closed]{RESET}"
 
 
-def pick_url(target):
-    if target.startswith("http"):
-        return target
-    with open(COMPANIES, encoding="utf-8") as f:
-        companies = json.load(f)["companies"]
-    for c in companies:
-        if c["name"].lower() == target.lower():
-            return c["homepage"]
-    names = ", ".join(c["name"] for c in companies)
-    raise SystemExit(f"{target!r} is not in data/web-scraping.json. Pick one of: {names}. Or pass a URL.")
-
-
 def preview(parts):
     """The message we send, with the base64 image replaced by its size."""
     shown = []
@@ -132,32 +119,36 @@ def main():
     # Browser part. Everything inside the "with" runs while a Chrome is
     # running for you at Zyte, and that's what you pay for.
     step(CLOSED, "Connect to browser.zyte.com")
-    with zyte_page(ttl=90) as page:
+    trace = os.path.join(out, "trace.zip")
+    with zyte_page(ttl=90, trace=trace) as page:
         opened = now()
         info(f"connected in {opened:.1f}s. A Chrome is running for you at Zyte now, billing started.")
+        info(f"recording a Playwright trace to {trace}")
 
         # Waiting for "load" is enough. We tried an extra wait for a quiet
         # network: busy sites never go quiet, it cost 5s per page and the
         # links and screenshot came out the same.
         step(OPEN, f"Go to {url} (wait for the load event)")
-        response = page.goto(url, wait_until="load")
+        with trace_step(page, f"Go to {url}"):
+            response = page.goto(url, wait_until="load")
         info(f"status {response.status if response else '?'}, title: {page.title()!r}")
         if page.url != url:
             info(f"redirected to {page.url}")
 
-        step(OPEN, "Screenshot (top of the page, what the model will look at)")
-        shot = page.screenshot(type="jpeg", quality=70)
-        info(f"{len(shot) // 1024} KB jpeg")
+        with trace_step(page, "Capture what the model gets: screenshot, markdown, links"):
+            step(OPEN, "Screenshot (top of the page, what the model will look at)")
+            shot = page.screenshot(type="jpeg", quality=70)
+            info(f"{len(shot) // 1024} KB jpeg")
 
-        step(OPEN, "HTML -> markdown (what the model will read)")
-        html = page.content()
-        md = to_markdown(html)
-        info(f"HTML {len(html) // 1024} KB -> markdown {len(md) // 1024} KB")
+            step(OPEN, "HTML -> markdown (what the model will read)")
+            html = page.content()
+            md = to_markdown(html)
+            info(f"HTML {len(html) // 1024} KB -> markdown {len(md) // 1024} KB")
 
-        step(OPEN, "List links and buttons, numbered")
-        links = get_links(page)
-        final_url = page.url
-        info(f"{len(links)} links and buttons")
+            step(OPEN, "List links and buttons, numbered")
+            links = get_links(page)
+            final_url = page.url
+            info(f"{len(links)} links and buttons")
 
         step(OPEN, "Close the session (Browser.close over CDP)")
         closing = now()
@@ -233,6 +224,8 @@ def main():
     print(f"\n{BOLD}Done in {now():.1f}s.{RESET} Browser {session:.1f}s, model {stats['seconds']}s. Look at:")
     for name in ["screenshot.jpg", "page.md", "links.txt", "request.json", "answer.json"]:
         print(f"  {out}/{name}")
+    print(f"\nReplay the browser session: {BOLD}playwright show-trace {trace}{RESET}")
+    print(f"{GREY}(or drop the file on https://trace.playwright.dev, it stays in your browser){RESET}")
 
 
 if __name__ == "__main__":

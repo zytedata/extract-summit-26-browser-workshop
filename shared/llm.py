@@ -67,11 +67,7 @@ def ask(system, parts, schema, model=None):
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
     )
     start = time.time()
-    try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
-            data = json.load(resp)
-    except urllib.error.HTTPError as e:
-        raise SystemExit(f"OpenRouter said {e.code}: {e.read().decode()[:500]}")
+    data = send(req)
     if "error" in data:
         raise SystemExit(f"OpenRouter error: {data['error']}")
 
@@ -85,6 +81,29 @@ def ask(system, parts, schema, model=None):
         "cost_usd": usage.get("cost"),
     }
     return parse_json(text), stats
+
+
+RETRY_STATUS = {408, 429, 500, 502, 503, 504}
+
+
+def send(req, attempts=3):
+    """POST with retries. Wifi drops and busy providers are normal, a bad key
+    or a bad request is not, so only those first ones are retried."""
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=180) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as e:
+            if e.code not in RETRY_STATUS or attempt == attempts:
+                raise SystemExit(f"OpenRouter said {e.code}: {e.read().decode()[:500]}")
+            problem = f"OpenRouter said {e.code}"
+        except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
+            if attempt == attempts:
+                raise SystemExit(f"Could not reach OpenRouter after {attempts} tries: {getattr(e, 'reason', e)}")
+            problem = f"connection problem ({getattr(e, 'reason', e)})"
+        wait = 2 * attempt
+        print(f"        {problem}, trying again in {wait}s ({attempt}/{attempts - 1})")
+        time.sleep(wait)
 
 
 def parse_json(text):
