@@ -84,6 +84,7 @@ The IP is not yours. That's the Zyte browser.
 ```
 shared/zyte_cdp.py     opens a Zyte browser and always closes the session
 lessons/NN-name/       one folder per lesson
+data/                  companies found from "best X companies" list articles (discover.py, no browser)
 output/                what your agent captures (git ignored)
 ```
 

@@ -1,0 +1,238 @@
+{
+  "query": "web scraping",
+  "fetched": "2026-11-06",
+  "searches": [
+    "best web scraping companies",
+    "top web scraping companies",
+    "best web scraping services",
+    "top web scraping providers",
+    "web scraping companies list",
+    "web scraping providers compared"
+  ],
+  "articles": [
+    {
+      "title": "The Best Web Scraping Service Providers in 2026 - Tech Times",
+      "url": "https://www.techtimes.com/articles/328190/20260929/best-web-scraping-service-providers-2026.htm",
+      "query": "top web scraping companies",
+      "snippet": "Sep 29, 2026 · We ranked the best web scraping service providers in 2026. Grepsr is #1 for managed web scraping, data quality, …",
+      "companies": [
+        "Grepsr",
+        "Bright Data",
+        "Zyte",
+        "Oxylabs",
+        "Apify"
+      ]
+    },
+    {
+      "title": "Top 12 Web Scraping Companies in 2026 - thunderbit.com",
+      "url": "https://thunderbit.com/blog/top-web-scraping-companies",
+      "query": "top web scraping companies",
+      "snippet": "Whether you’re a non-technical user who just wants data in two clicks, or a developer looking for full control, this list covers the best …",
+      "companies": [
+        "Thunderbit",
+        "Scrapy",
+        "ParseHub",
+        "Octoparse",
+        "DataMiner",
+        "Import.io",
+        "Apify",
+        "Diffbot",
+        "WebHarvy",
+        "Mozenda",
+        "Sequentum",
+        "Helium Scraper"
+      ]
+    },
+    {
+      "title": "The 12 best web scraping tools for 2026 - Apify Blog",
+      "url": "https://blog.apify.com/best-web-scraping-tools/",
+      "query": "web scraping companies list",
+      "snippet": "3 days ago · Web scraping platforms, APIs, and no-code or low-code scrapers. Based on five criteria, we list the top 12 web scraping …",
+      "companies": [
+        "Apify",
+        "Oxylabs",
+        "Bright Data",
+        "ParseHub",
+        "Diffbot",
+        "Octoparse",
+        "Scrape.do",
+        "ScrapingBee",
+        "ScraperAPI",
+        "Zyte",
+        "Import.io",
+        "Webscraper.io"
+      ]
+    }
+  ],
+  "companies": [
+    {
+      "name": "Apify",
+      "homepage": "https://apify.com/",
+      "mentions": 3,
+      "found_in": [
+        "https://www.techtimes.com/articles/328190/20260929/best-web-scraping-service-providers-2026.htm",
+        "https://thunderbit.com/blog/top-web-scraping-companies",
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "Bright Data",
+      "homepage": "https://brightdata.com/",
+      "mentions": 2,
+      "found_in": [
+        "https://www.techtimes.com/articles/328190/20260929/best-web-scraping-service-providers-2026.htm",
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "Diffbot",
+      "homepage": "https://diffbot.com/",
+      "mentions": 2,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies",
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "Import.io",
+      "homepage": "https://import.io/",
+      "mentions": 2,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies",
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "Octoparse",
+      "homepage": "https://octoparse.com/",
+      "mentions": 2,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies",
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "Oxylabs",
+      "homepage": "https://oxylabs.io/",
+      "mentions": 2,
+      "found_in": [
+        "https://www.techtimes.com/articles/328190/20260929/best-web-scraping-service-providers-2026.htm",
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "ParseHub",
+      "homepage": "https://parsehub.com/",
+      "mentions": 2,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies",
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "Zyte",
+      "homepage": "https://zyte.com/",
+      "mentions": 2,
+      "found_in": [
+        "https://www.techtimes.com/articles/328190/20260929/best-web-scraping-service-providers-2026.htm",
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "DataMiner",
+      "homepage": "https://data-miner.io/",
+      "mentions": 1,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies"
+      ]
+    },
+    {
+      "name": "Grepsr",
+      "homepage": "https://grepsr.com/",
+      "mentions": 1,
+      "found_in": [
+        "https://www.techtimes.com/articles/328190/20260929/best-web-scraping-service-providers-2026.htm"
+      ]
+    },
+    {
+      "name": "Helium Scraper",
+      "homepage": "https://heliumscraper.com/",
+      "mentions": 1,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies"
+      ]
+    },
+    {
+      "name": "Mozenda",
+      "homepage": "https://mozenda.com/",
+      "mentions": 1,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies"
+      ]
+    },
+    {
+      "name": "Scrape.do",
+      "homepage": "https://scrape.do/",
+      "mentions": 1,
+      "found_in": [
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "ScraperAPI",
+      "homepage": "https://scraperapi.com/",
+      "mentions": 1,
+      "found_in": [
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "ScrapingBee",
+      "homepage": "https://scrapingbee.com/",
+      "mentions": 1,
+      "found_in": [
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    },
+    {
+      "name": "Scrapy",
+      "homepage": "https://scrapy.org/",
+      "mentions": 1,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies"
+      ]
+    },
+    {
+      "name": "Sequentum",
+      "homepage": "https://sequentum.com/",
+      "mentions": 1,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies"
+      ]
+    },
+    {
+      "name": "Thunderbit",
+      "homepage": "https://thunderbit.com/",
+      "mentions": 1,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies"
+      ]
+    },
+    {
+      "name": "WebHarvy",
+      "homepage": "https://webharvy.com/",
+      "mentions": 1,
+      "found_in": [
+        "https://thunderbit.com/blog/top-web-scraping-companies"
+      ]
+    },
+    {
+      "name": "Webscraper.io",
+      "homepage": "https://webscraper.io/",
+      "mentions": 1,
+      "found_in": [
+        "https://blog.apify.com/best-web-scraping-tools/"
+      ]
+    }
+  ]
+}
