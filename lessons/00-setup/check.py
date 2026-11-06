@@ -18,5 +18,5 @@ with zyte_page(ttl=60) as page:
     print("browsing from:", page.inner_text("body").strip())
 print("session closed. You're ready.")
 
-if not os.environ.get("ANTHROPIC_API_KEY"):
-    print("note: ANTHROPIC_API_KEY is not set yet, you need it from lesson 03.")
+if not os.environ.get("OPENROUTER_API_KEY"):
+    print("note: OPENROUTER_API_KEY is not set yet, you need it from lesson 03.")

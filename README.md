@@ -13,8 +13,8 @@ About 100 lines of Python you can read end to end and take home.
 | 00 | [Setup](lessons/00-setup/) | Check you can open a Zyte browser | 10 min |
 | 01 | [First session](lessons/01-first-session/) | How it works, then one session step by step with the CDP trace | 10 min |
 | 02 | [Find the competitors](lessons/02-find-competitors/) | Where the competitor list comes from: search, list articles, no browser | 5 min |
-| 03 | [Describe a page](lessons/03-describe-a-page/) | Send a page to Claude, get back a description and page type | 15 min |
-| 04 | [Agent loop](lessons/04-agent-loop/) | Let Claude pick the next click, loop until it finds pricing | 20 min |
+| 03 | [Describe a page](lessons/03-describe-a-page/) | Send a page to a model, get back what it is, prices, where pricing is | 15 min |
+| 04 | [Agent loop](lessons/04-agent-loop/) | Let the model pick the next click, loop until it finds pricing | 20 min |
 | 05 | [Explore competitors](lessons/05-explore-competitors/) | Run your agent on the competitor list, a few sessions in parallel | 15 min |
 | 06 | [Report](lessons/06-report/) | Turn the captured pages into a pricing comparison | 10 min |
 
@@ -29,7 +29,7 @@ Do this before the workshop if you can. Conference wifi is not your friend.
 - Python 3.10 or newer
 - git
 - A Zyte account with an API key: https://app.zyte.com
-- An Anthropic API key: https://console.anthropic.com
+- An OpenRouter API key: https://openrouter.ai/keys. One key for many models (Claude, Gemini, GPT, ...)
 
 You don't need to install a browser. The browser runs on Zyte's side, your script just connects to it.
 
@@ -56,7 +56,7 @@ If you use uv: `uv venv && uv pip install -r requirements.txt`.
 cp .env.example .env
 ```
 
-Open `.env` and fill in `ZYTE_API_KEY` and `ANTHROPIC_API_KEY`.
+Open `.env` and fill in `ZYTE_API_KEY` and `OPENROUTER_API_KEY`. `OPENROUTER_MODEL` is optional, the default is `anthropic/claude-haiku-5.5`. Any model that reads images works.
 
 ### 5. Check it works
 
@@ -91,7 +91,7 @@ output/                what your agent captures (git ignored)
 
 ## A note on cost
 
-A Zyte browser session costs whichever is higher: the number of pages you open, or its length in 15 second blocks. A session left open keeps counting until its `ttl`, so the helper in `shared/` always ends it when your script finishes, even if it crashes. Claude calls are billed per token. A full run of the workshop should cost a few dollars at most.
+A Zyte browser session costs whichever is higher: the number of pages you open, or its length in 15 second blocks. A session left open keeps counting until its `ttl`, so the helper in `shared/` always ends it when your script finishes, even if it crashes. Model calls are billed per token by OpenRouter, the scripts print the cost of each call. A full run of the workshop should cost a few dollars at most.
 
 ## Contributing
 

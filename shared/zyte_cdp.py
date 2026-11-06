@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright
 
+load_dotenv(".env.local")  # wins if both exist
 load_dotenv()
 
 CDP_ENDPOINT = "https://browser.zyte.com/"

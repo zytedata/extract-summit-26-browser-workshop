@@ -21,7 +21,7 @@ flowchart LR
     res["other types of IPs"]
   end
   site["Website"]
-  claude["Claude API<br/>(from lesson 03)"]
+  llm["Model via OpenRouter<br/>(from lesson 03)"]
 
   script -- "CDP commands over a websocket<br/>go to, click, screenshot" --> gw
   gw --> chrome
@@ -29,8 +29,8 @@ flowchart LR
   pick --> dc --> site
   pick --> res --> site
   chrome -. "screenshot, HTML" .-> script
-  script -. "screenshot + markdown" .-> claude
-  claude -. "what this page is, what to click" .-> script
+  script -. "screenshot + markdown" .-> llm
+  llm -. "what this page is, what to click" .-> script
 ```
 
 Four parts, four jobs:
@@ -38,7 +38,7 @@ Four parts, four jobs:
 - **Zyte browser** loads the page. Real Chrome that runs the JavaScript. Zyte takes care of what makes a browser look like a bot (fingerprint, TLS) and handles CAPTCHAs and challenge pages like Cloudflare's.
 - **Proxy** is where the site thinks you are. Zyte picks it on the first page you open: datacenter or residential, and a country, whatever works best for that site. You can force it with `proxy_type` and `proxy_region` on the connect URL. One session keeps one IP and one cookie jar until it ends.
 - **Your script** is the middle. It tells the browser what to do and collects what it sees.
-- **Claude** (from lesson 03) never touches the browser. It only gets what your script sends it and answers with a decision.
+- **The model** (from lesson 03) never touches the browser. It only gets what your script sends it and answers with a decision.
 
 CDP (Chrome DevTools Protocol) is the same protocol Chrome DevTools uses. Playwright speaks it, so `connect_over_cdp` gives you a normal Playwright `page`, just running somewhere else.
 
@@ -93,11 +93,11 @@ The full trace, every single message, is in `output/01/cdp_trace.log`.
 
 **3. Wait.** `load` fired, but pages keep fetching after that. We wait until the network goes quiet (max 5s).
 
-**4. Screenshot.** `Page.captureScreenshot` comes back as base64 inside the CDP message. Note the size, it's what we'll send to Claude in lesson 03.
+**4. Screenshot.** `Page.captureScreenshot` comes back as base64 inside the CDP message. Note the size, it's what we'll send to the model in lesson 03.
 
 **5. HTML to markdown.** No special CDP command for this. Playwright runs a bit of JavaScript in the page (`Runtime.callFunctionOn`) and gets the HTML back. Then we strip scripts and styles and convert to markdown. Compare the two sizes: markdown is what the model reads, and you pay per token.
 
-**6. What can be clicked.** Same trick, our own JS runs in the page and lists visible links and buttons. Numbered, so in lesson 04 Claude can answer "click 3" instead of guessing selectors.
+**6. What can be clicked.** Same trick, our own JS runs in the page and lists visible links and buttons. Numbered, so in lesson 04 the model can answer "click 3" instead of guessing selectors.
 
 **7. Which IP did the site see.** A new tab in the same session opens ipinfo.io. Same session, so same proxy as the page you just loaded. Look at the network name: a hosting company (M247, Latitude.sh, OVH) means a datacenter proxy, a home ISP (Comcast, Virgin Media, Vodafone) means residential. This costs one extra page load.
 
