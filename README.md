@@ -4,14 +4,14 @@ Extract Summit 2026, Dublin. Hands-on workshop, 90 min.
 
 You get a question from your boss: "who are our competitors and what do they charge?". In this workshop you build a small agent that answers it. It drives a real browser (Zyte Browser over CDP), looks at each page, describes what it sees and decides where to click next. Then you run it on a list of competitors and turn what it found into a pricing table.
 
-No frameworks. About 100 lines of Python you can read end to end and take home.
+About 100 lines of Python you can read end to end and take home.
 
 ## Lessons
 
 | # | Lesson | What you do | Time |
 |---|---|---|---|
 | 00 | [Setup](lessons/00-setup/) | Check you can open a Zyte browser | 10 min |
-| 01 | [First session](lessons/01-first-session/) | Open a page over CDP, screenshot it, close the session | 10 min |
+| 01 | [First session](lessons/01-first-session/) | How it works, then one session step by step with the CDP trace | 10 min |
 | 02 | [Describe a page](lessons/02-describe-a-page/) | Send a page to Claude, get back a description and page type | 15 min |
 | 03 | [Agent loop](lessons/03-agent-loop/) | Let Claude pick the next click, loop until it finds pricing | 20 min |
 | 04 | [Explore competitors](lessons/04-explore-competitors/) | Run your agent on a list of sites, a few sessions in parallel | 15 min |
@@ -89,7 +89,7 @@ output/                what your agent captures (git ignored)
 
 ## A note on cost
 
-Zyte browser sessions are billed by time, so the helper in `shared/` always ends the session when your script finishes, even if it crashes. Claude calls are billed per token. A full run of the workshop should cost a few dollars at most.
+A Zyte browser session costs whichever is higher: the number of pages you open, or its length in 15 second blocks. A session left open keeps counting until its `ttl`, so the helper in `shared/` always ends it when your script finishes, even if it crashes. Claude calls are billed per token. A full run of the workshop should cost a few dollars at most.
 
 ## Contributing
 

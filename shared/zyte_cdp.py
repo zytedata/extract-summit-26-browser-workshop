@@ -25,11 +25,23 @@ def auth_headers():
     return {"Authorization": f"Basic {token}"}
 
 
+def connect_url(ttl=120, proxy_type=None, proxy_region=None):
+    """proxy_type (datacenter/residential) and proxy_region (country code) are
+    optional. Left out, Zyte picks what works best for the first site you open."""
+    url = f"{CDP_ENDPOINT}?ttl={ttl}"
+    if proxy_type:
+        url += f"&proxy_type={proxy_type}"
+    if proxy_region:
+        url += f"&proxy_region={proxy_region}"
+    return url
+
+
 @contextmanager
-def zyte_page(ttl=120):
+def zyte_page(ttl=120, proxy_type=None, proxy_region=None):
     """Yield a Playwright page running in a Zyte browser."""
     with sync_playwright() as p:
-        browser = p.chromium.connect_over_cdp(f"{CDP_ENDPOINT}?ttl={ttl}", headers=auth_headers())
+        url = connect_url(ttl, proxy_type, proxy_region)
+        browser = p.chromium.connect_over_cdp(url, headers=auth_headers())
         context = browser.contexts[0] if browser.contexts else browser.new_context()
         page = context.new_page()
         try:
