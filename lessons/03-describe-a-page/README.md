@@ -1,4 +1,4 @@
-# 02 Describe a page
+# 03 Describe a page
 
 Goal: hand one page to Claude and get back what it is.
 
@@ -12,6 +12,6 @@ You'll learn:
 - getting structured output back instead of free text
 - when the screenshot helps and when the markdown is enough
 
-Start from `describe.py`. Try it on a few pages, including one that blocks you.
+Start from `describe.py`. Try it on a few homepages from `data/web-scraping.json`, and on one page that blocks you.
 
 TODO: starter + solution

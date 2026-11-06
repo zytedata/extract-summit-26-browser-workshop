@@ -1,4 +1,4 @@
-# 05 Report
+# 06 Report
 
 Goal: answer the boss. Read what the agent captured and build a pricing table: competitor, plan, price, currency, period, what's included.
 

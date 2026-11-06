@@ -1,4 +1,4 @@
-# 03 Agent loop
+# 04 Agent loop
 
 Goal: let Claude drive. On every page it describes what it sees and picks the next action. The loop runs in one browser session until Claude says it's done or hits the page limit.
 

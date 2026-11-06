@@ -19,4 +19,4 @@ with zyte_page(ttl=60) as page:
 print("session closed. You're ready.")
 
 if not os.environ.get("ANTHROPIC_API_KEY"):
-    print("note: ANTHROPIC_API_KEY is not set yet, you need it from lesson 02.")
+    print("note: ANTHROPIC_API_KEY is not set yet, you need it from lesson 03.")

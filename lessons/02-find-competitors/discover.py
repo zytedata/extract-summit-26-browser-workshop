@@ -1,7 +1,7 @@
 """Find companies in a space from "best X companies" list articles. No browser.
 
-    python data/discover.py "web scraping"
-    python data/discover.py "specialty coffee roasters" --articles 8
+    python lessons/02-find-competitors/discover.py "web scraping"
+    python lessons/02-find-competitors/discover.py "specialty coffee roasters" --articles 8
 
 1. Search Bing for list articles ("best web scraping companies", ...)
 2. Pull the article body from each one with Zyte API article extraction
@@ -11,9 +11,9 @@
 4. Homepage: the article's own link if it has one, otherwise a Bing lookup
    for "<name> official site".
 
-Output: data/<query-slug>.json. The workshop starts from this file, it
-doesn't run discovery live. Search results change and Bing behaves
-differently from run to run.
+Output: output/02/<query-slug>.json. The later lessons read the saved copy in
+data/web-scraping.json instead, because search results change from run to run.
+--save writes there (that's how the saved copy was made).
 """
 
 import argparse
@@ -30,11 +30,11 @@ from urllib.parse import parse_qs, quote_plus, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from shared.zyte_cdp import auth_headers  # noqa: E402
 
-HERE = os.path.dirname(__file__)
+REPO = os.path.join(os.path.dirname(__file__), "..", "..")
 
 QUERIES = [
     "best {q} companies",
@@ -176,6 +176,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("query", help='what the companies do, e.g. "web scraping"')
     parser.add_argument("--articles", type=int, default=6, help="how many list articles to read")
+    parser.add_argument("--save", action="store_true", help="write to data/ instead of output/02/")
     args = parser.parse_args()
 
     print(f"Searching Bing for list articles about {args.query!r}")
@@ -239,7 +240,9 @@ def main():
     }
 
     slug = re.sub(r"[^a-z0-9]+", "-", args.query.lower()).strip("-")
-    path = os.path.join(HERE, f"{slug}.json")
+    folder = os.path.join(REPO, "data" if args.save else os.path.join("output", "02"))
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.normpath(os.path.join(folder, f"{slug}.json"))
     with open(path, "w", encoding="utf-8") as f:
         json.dump(out, f, indent=2, ensure_ascii=False)
         f.write("\n")

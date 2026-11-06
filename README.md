@@ -12,10 +12,11 @@ About 100 lines of Python you can read end to end and take home.
 |---|---|---|---|
 | 00 | [Setup](lessons/00-setup/) | Check you can open a Zyte browser | 10 min |
 | 01 | [First session](lessons/01-first-session/) | How it works, then one session step by step with the CDP trace | 10 min |
-| 02 | [Describe a page](lessons/02-describe-a-page/) | Send a page to Claude, get back a description and page type | 15 min |
-| 03 | [Agent loop](lessons/03-agent-loop/) | Let Claude pick the next click, loop until it finds pricing | 20 min |
-| 04 | [Explore competitors](lessons/04-explore-competitors/) | Run your agent on a list of sites, a few sessions in parallel | 15 min |
-| 05 | [Report](lessons/05-report/) | Turn the captured pages into a pricing comparison | 10 min |
+| 02 | [Find the competitors](lessons/02-find-competitors/) | Where the competitor list comes from: search, list articles, no browser | 5 min |
+| 03 | [Describe a page](lessons/03-describe-a-page/) | Send a page to Claude, get back a description and page type | 15 min |
+| 04 | [Agent loop](lessons/04-agent-loop/) | Let Claude pick the next click, loop until it finds pricing | 20 min |
+| 05 | [Explore competitors](lessons/05-explore-competitors/) | Run your agent on the competitor list, a few sessions in parallel | 15 min |
+| 06 | [Report](lessons/06-report/) | Turn the captured pages into a pricing comparison | 10 min |
 
 Each lesson folder has a README, a starter file and a `solution/` folder if you get stuck. Lessons build on each other, but you can start any lesson from the previous solution.
 
@@ -84,7 +85,7 @@ The IP is not yours. That's the Zyte browser.
 ```
 shared/zyte_cdp.py     opens a Zyte browser and always closes the session
 lessons/NN-name/       one folder per lesson
-data/                  companies found from "best X companies" list articles (discover.py, no browser)
+data/                  the competitor list from lesson 02, saved so every run starts the same
 output/                what your agent captures (git ignored)
 ```
 
