@@ -12,6 +12,7 @@ the file on https://trace.playwright.dev (it stays in your browser).
 
 import base64
 import os
+import time
 from contextlib import contextmanager
 
 from dotenv import find_dotenv, load_dotenv
@@ -43,12 +44,26 @@ def connect_url(ttl=120, proxy_type=None, proxy_region=None):
     return url
 
 
+def connect(p, url, attempts=4):
+    """429 means your account has as many browsers open as it's allowed.
+    Wait for one to finish and try again."""
+    for attempt in range(1, attempts + 1):
+        try:
+            return p.chromium.connect_over_cdp(url, headers=auth_headers())
+        except Exception as e:
+            if "429" not in str(e) or attempt == attempts:
+                raise
+            wait = 5 * attempt
+            print(f"browser limit reached (429), trying again in {wait}s")
+            time.sleep(wait)
+
+
 @contextmanager
 def zyte_page(ttl=120, proxy_type=None, proxy_region=None, trace=None):
     """Yield a Playwright page running in a Zyte browser."""
     with sync_playwright() as p:
         url = connect_url(ttl, proxy_type, proxy_region)
-        browser = p.chromium.connect_over_cdp(url, headers=auth_headers())
+        browser = connect(p, url)
         context = browser.contexts[0] if browser.contexts else browser.new_context()
         if trace:
             context.tracing.start(screenshots=True, snapshots=True)
@@ -77,3 +92,21 @@ def trace_step(page, title):
         yield
     finally:
         page.context.tracing.group_end()
+
+
+def settle(page, timeout=10_000):
+    """Wait for the "load" event, but not forever. Some pages keep one request
+    open (a tracker, a chat widget) and "load" never fires. The page is usable
+    long before that, so after `timeout` we just carry on."""
+    try:
+        page.wait_for_load_state("load", timeout=timeout)
+        return True
+    except Exception:
+        return False
+
+
+def open_url(page, url):
+    """page.goto that doesn't hang on pages that never finish loading."""
+    response = page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+    settle(page)
+    return response

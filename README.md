@@ -2,9 +2,9 @@
 
 Extract Summit 2026, Dublin. Hands-on workshop, 90 min.
 
-You get a question from your boss: "who are our competitors and what do they charge?". In this workshop you build a small agent that answers it. It drives a real browser (Zyte Browser over CDP), looks at each page, describes what it sees and decides where to click next. Then you run it on a list of competitors and turn what it found into a pricing table.
+You are building a startup and you need to find out "who are our competitors and what do they charge?". In this workshop you answer it with a small browser agent. First you find the competitors from "best X companies" articles. Then the agent drives a real browser (Zyte Browser over CDP) on each competitor's site: it looks at the page, says what it sees, and decides where to click next until it has the prices. At the end you turn what it found into a pricing table.
 
-About 100 lines of Python you can read end to end and take home.
+You don't write the agent, you run it step by step and look at what happens at each step. The code is plain Python with no framework, short enough to read end to end and take home.
 
 ## Lessons
 
@@ -15,10 +15,12 @@ About 100 lines of Python you can read end to end and take home.
 | 02 | [Find the competitors](lessons/02-find-competitors/) | Where the competitor list comes from: search, list articles, no browser | 5 min |
 | 03 | [Describe a page](lessons/03-describe-a-page/) | Send a page to a model, get back what it is, prices, where pricing is | 15 min |
 | 04 | [Agent loop](lessons/04-agent-loop/) | Let the model pick the next click, loop until it finds pricing | 20 min |
-| 05 | [Explore competitors](lessons/05-explore-competitors/) | Run your agent on the competitor list, a few sessions in parallel | 15 min |
-| 06 | [Report](lessons/06-report/) | Turn the captured pages into a pricing comparison | 10 min |
+| 05 | [Explore competitors](lessons/05-explore-competitors/) | Run the agent on 5 competitors, 3 at a time, and watch them in a live dashboard | 15 min |
+| 06 | [Report](lessons/06-report/) | Read the dashboard: entry prices, plan ladders, annual discounts, what it cost | 10 min |
 
 No coding needed. Each lesson has a README and a script you run: it explains a step, you run it, you look at the output. Read the scripts if you want to see how it's done, they're short.
+
+Wifi gone? Lessons 05 and 06 work offline from a recorded run: `python lessons/05-explore-competitors/explore.py --replay`.
 
 ## Setup
 
@@ -31,7 +33,7 @@ Do this before the workshop if you can. Conference wifi is not your friend.
 - A Zyte account with an API key: https://app.zyte.com
 - An OpenRouter API key: https://openrouter.ai/keys. One key for many models (Claude, Gemini, GPT, ...)
 
-You don't need to install a browser. The browser runs on Zyte's side, your script just connects to it.
+You don't need to install a browser to run the lessons. The browser runs on Zyte's side, your script just connects to it.
 
 ### 2. Get the code
 
@@ -56,7 +58,7 @@ If you use uv: `uv venv && uv pip install -r requirements.txt`.
 cp .env.example .env
 ```
 
-Open `.env` and fill in `ZYTE_API_KEY` and `OPENROUTER_API_KEY`. `OPENROUTER_MODEL` is optional, the default is `anthropic/claude-haiku-5.5`. Any model that reads images works.
+Open `.env` and fill in `ZYTE_API_KEY` and `OPENROUTER_API_KEY`. `OPENROUTER_MODEL` is optional, the default is `anthropic/claude-haiku-5.5`. Any model that reads images works. A `.env.local` works too, and wins if you have both.
 
 ### 5. Check it works
 
@@ -68,24 +70,42 @@ You should see something like:
 
 ```
 connected in 2.1s
-browsing from: {"origin": "147.53.113.103"}
+browsing from: {
+  "origin": "147.53.113.103"
+}
 session closed. You're ready.
 ```
 
 The IP is not yours. That's the Zyte browser.
+
+### 6. Trace viewer (optional)
+
+Lessons 03 to 05 record each browser session as a Playwright trace you can replay step by step. Two ways to open one:
+
+- No install: drop the `trace.zip` on https://trace.playwright.dev. The file stays in your browser.
+- Locally: `playwright show-trace output/04/apify.com/trace.zip`. This needs a local Chromium for the viewer, so run `playwright install chromium` before the workshop. It's a big download.
 
 ### Troubleshooting
 
 - `ZYTE_API_KEY is not set` - the `.env` file is missing or the key line is empty.
 - `401` or `403` when connecting - check the key, and that Browser CDP is enabled on your Zyte account.
 - Hangs on connect - corporate VPN or proxy blocking websockets. Try without the VPN.
+- `429` when connecting - you have as many browsers open as your Zyte account allows. Wait for one to finish.
+- `OPENROUTER_API_KEY is not set` or `OpenRouter said 401` - the key is missing or wrong in `.env`.
+- `OpenRouter said 402` - the OpenRouter key is out of credit.
+- `connection problem ..., trying again` - wifi dropped mid request. The scripts try 3 times before giving up.
 
 ## Repo layout
 
 ```
-shared/zyte_cdp.py     opens a Zyte browser and always closes the session
+shared/zyte_cdp.py     opens a Zyte browser, always closes the session, records the trace
+shared/capture.py      page -> screenshot, markdown, numbered links and buttons
+shared/llm.py          one call to a model through OpenRouter, JSON back, tokens and cost
+shared/companies.py    looks up a company in the list from lesson 02
+shared/store.py        the SQLite database agents write to and the dashboard reads
+shared/cdp_trace.py    the raw CDP messages view in lesson 01
 lessons/NN-name/       one folder per lesson
-data/                  the competitor list from lesson 02, saved so every run starts the same
+data/                  the competitor list from lesson 02, and a recorded run for --replay
 output/                what your agent captures (git ignored)
 ```
 

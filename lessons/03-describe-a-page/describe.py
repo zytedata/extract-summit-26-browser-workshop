@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from shared import llm  # noqa: E402
 from shared.companies import pick_url  # noqa: E402
 from shared.capture import format_links, get_links, to_markdown  # noqa: E402
-from shared.zyte_cdp import trace_step, zyte_page  # noqa: E402
+from shared.zyte_cdp import open_url, trace_step, zyte_page  # noqa: E402
 
 # Keep what we send small. Long pages get cut, and we say so.
 MAX_MARKDOWN = 30_000  # characters, about 7-8k tokens
@@ -125,12 +125,12 @@ def main():
         info(f"connected in {opened:.1f}s. A Chrome is running for you at Zyte now, billing started.")
         info(f"recording a Playwright trace to {trace}")
 
-        # Waiting for "load" is enough. We tried an extra wait for a quiet
-        # network: busy sites never go quiet, it cost 5s per page and the
-        # links and screenshot came out the same.
+        # Wait for "load", max 10s (see open_url). We tried an extra wait for
+        # a quiet network: busy sites never go quiet, it cost 5s per page and
+        # the links and screenshot came out the same.
         step(OPEN, f"Go to {url} (wait for the load event)")
         with trace_step(page, f"Go to {url}"):
-            response = page.goto(url, wait_until="load")
+            response = open_url(page, url)
         info(f"status {response.status if response else '?'}, title: {page.title()!r}")
         if page.url != url:
             info(f"redirected to {page.url}")

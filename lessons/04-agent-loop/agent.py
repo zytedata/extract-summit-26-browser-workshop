@@ -8,6 +8,9 @@
 Every step: capture the page (lesson 03), ask the model what it sees and what
 to do next, do it. One browser session for the whole run, so cookies, toggles
 and the IP stay the same. Output lands in output/04/<site>/.
+
+Every step also goes into output/workshop.db, so the dashboard from lesson 06
+(streamlit run lessons/06-report/app.py) shows the run while it happens.
 """
 
 import argparse
@@ -21,10 +24,10 @@ from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from shared import llm  # noqa: E402
+from shared import llm, store  # noqa: E402
 from shared.capture import format_links, get_links, to_markdown  # noqa: E402
 from shared.companies import pick_url  # noqa: E402
-from shared.zyte_cdp import trace_step, zyte_page  # noqa: E402
+from shared.zyte_cdp import open_url, settle, trace_step, zyte_page  # noqa: E402
 
 GOAL = "Find the pricing and capture every price set, for example both monthly and annual prices."
 
@@ -49,6 +52,12 @@ price ("month, billed monthly" / "month, billed annually"), then flip it once
 so the other set gets captured. Don't flip back to double check, what you
 reported is saved. When every price set is in the steps so far or on this
 page, say done.
+
+For every price also fill in the comparable form: usd_month is what the plan
+costs per month in USD as a number (for annual billing, the per-month price),
+null when it's usage based, custom or not in USD. billing is monthly, annual
+or none. kind is subscription, usage, custom or free.
+If the page is a block page (CAPTCHA, access denied), say done.
 Answer with JSON only, in the shape you were given. Use only what is on the page."""
 
 SCHEMA = {
@@ -69,8 +78,11 @@ SCHEMA = {
                     "amount": {"type": "string", "description": "as shown, e.g. '49', 'from 0.13', 'custom'"},
                     "currency": {"type": "string"},
                     "period": {"type": "string", "description": "with the toggle state if there is one, e.g. 'month, billed monthly', 'month, billed annually', 'per 1k requests'"},
+                    "usd_month": {"type": ["number", "null"], "description": "per month in USD, null if usage based or custom"},
+                    "billing": {"type": "string", "enum": ["monthly", "annual", "none"]},
+                    "kind": {"type": "string", "enum": ["subscription", "usage", "custom", "free"]},
                 },
-                "required": ["plan", "amount", "currency", "period"],
+                "required": ["plan", "amount", "currency", "period", "usd_month", "billing", "kind"],
                 "additionalProperties": False,
             },
         },
@@ -99,15 +111,34 @@ def main():
     parser.add_argument("--goal", default=GOAL)
     parser.add_argument("--model", help=f"OpenRouter model id, default: {llm.model_name()}")
     parser.add_argument("--max-steps", type=int, default=6)
+    parser.add_argument("--out", default=os.path.join("output", "04"), help="folder for the journey, one subfolder per site")
+    parser.add_argument("--run-id", default=os.environ.get("WORKSHOP_RUN_ID"), help="add to this run in the database (explore.py sets it)")
     args = parser.parse_args()
 
     url = pick_url(args.target)
     site = urlparse(url).netloc.removeprefix("www.")
-    out = os.path.join("output", "04", site)
+    company = site if args.target.startswith("http") else args.target
+    out = os.path.join(args.out, site)
     shutil.rmtree(out, ignore_errors=True)  # a fresh journey every run
     os.makedirs(out)
     model = llm.model_name(args.model)
     t0 = time.time()
+
+    # The dashboard reads this. One row per step, one per price, plus a status
+    # row for this competitor that we update as we go.
+    db = store.connect()
+    run_id = store.new_run(db, model=model, goal=args.goal, run_id=args.run_id)
+    # started = now, not when explore.py queued it: the dashboard and the
+    # replay show the wait in the queue.
+    store.agent(db, run_id, site, company=company, status="connecting", step=0, started=time.time())
+    try:
+        run(args, url, site, company, out, model, t0, db, run_id)
+    except BaseException as e:  # also Ctrl+C and SystemExit, so the dashboard doesn't wait forever
+        store.agent(db, run_id, site, status="error", error=f"{type(e).__name__}: {e}"[:300])
+        raise
+
+
+def run(args, url, site, company, out, model, t0, db, run_id):
 
     def now():
         return time.time() - t0
@@ -124,10 +155,16 @@ def main():
     journey, history, model_calls = [], [], []
     page_loads = 0
     in_page_clicks = 0  # clicks that changed the page without a new URL
+    codes = []  # HTTP status of every page the browser navigated to
+    final = f"out of steps ({args.max_steps})"
 
     def count_load(_):
         nonlocal page_loads
         page_loads += 1
+
+    def watch(p):
+        p.on("load", count_load)
+        p.on("response", lambda r: codes.append(r.status) if r.request.is_navigation_request() and r.frame == p.main_frame else None)
 
     step(CLOSED, "Connect to browser.zyte.com")
     trace = os.path.join(out, "trace.zip")
@@ -136,11 +173,12 @@ def main():
         info(f"connected in {opened:.1f}s, billing started")
         info(f"recording a Playwright trace to {trace}")
         tracing = page.context.tracing  # one per session, also covers new tabs
-        page.on("load", count_load)
+        watch(page)
+        store.agent(db, run_id, site, status="opening the homepage")
 
         step(OPEN, f"Go to {url}")
         with trace_step(page, f"Open {url}"):
-            page.goto(url, wait_until="load")
+            open_url(page, url)
 
         for n in range(1, args.max_steps + 1):
             # In the trace viewer every step is two groups: "look" (capture,
@@ -152,6 +190,10 @@ def main():
             md = to_markdown(page.content())
             links = get_links(page)
             info(f"screenshot {len(shot) // 1024} KB, markdown {len(md) // 1024} KB, {len(links)} links and buttons")
+            latest = os.path.join(out, "latest.jpg")  # what the dashboard shows right now
+            with open(latest, "wb") as f:
+                f.write(shot)
+            store.agent(db, run_id, site, status=f"step {n}: model is looking", step=n, url=page.url, screenshot=latest)
 
             so_far = "\n".join(history) or "none, this is the first page"
             parts = [
@@ -169,6 +211,7 @@ def main():
             for line in json.dumps(answer, indent=2, ensure_ascii=False).splitlines():
                 info(f"{CYAN}{line}{RESET}")
             tracing.group_end()
+            store.prices(db, run_id, site, company, n, page.url, answer["prices"])
 
             name = f"{n:02d}_{answer['page_type']}"
             with open(os.path.join(out, name + ".jpg"), "wb") as f:
@@ -199,7 +242,23 @@ def main():
             saved = "; ".join(f"{p['plan']} {p['amount']} {p['currency']}/{p['period']}" for p in answer["prices"])
             saved = f" Prices saved: {saved}." if saved else ""
 
+            label = f"click {answer['link']} {target['text']!r}" if target else answer["action"]
+            store.step(db, run_id, site, step=n, url=page.url, status_code=codes[-1] if codes else None,
+                       page_type=answer["page_type"], description=answer["description"], action=answer["action"],
+                       link_text=target["text"] if target else None, why=answer["why"],
+                       screenshot=os.path.join(out, name + ".jpg"), model_usd=stats["cost_usd"])
+            store.agent(db, run_id, site, status=f"step {n}: {label}", why=answer["why"],
+                        screenshot=os.path.join(out, name + ".jpg"))
+
+            if answer["page_type"] == "block_page":
+                # Zyte's browser handles unblocking. If we still see one, say so, don't work around it.
+                step(OPEN, f"{YELLOW}Step {n}: the model says this is a block page. Stopping, worth reporting.{RESET}")
+                final = "blocked (unexpected, worth reporting)"
+                journey.append(record)
+                break
+
             if answer["action"] == "done":
+                final = "done"
                 tracing.group(f"Step {n}: done. Model: {answer['why']}")
                 tracing.group_end()
                 journey.append(record)
@@ -207,7 +266,6 @@ def main():
                 break
 
             before = page.url
-            label = f"click {answer['link']} {target['text']!r}" if target else answer["action"]
             tracing.group(f"Step {n}: {label}. Model: {answer['why']}")
             if answer["action"] == "scroll":
                 step(OPEN, f"Step {n}: scroll down")
@@ -225,9 +283,9 @@ def main():
                     page.wait_for_timeout(1000)  # give a navigation or a toggle time to start
                     if len(page.context.pages) > tabs:  # opened a new tab: follow it
                         page = page.context.pages[-1]
-                        page.on("load", count_load)
+                        watch(page)
                         info("it opened a new tab, carrying on there")
-                    page.wait_for_load_state("load", timeout=15_000)
+                    settle(page)  # a click that loads a page: wait for it, but not forever
                     did = f"clicked {answer['link']} {target['text']!r}"
                 except Exception as e:
                     # Usually a link inside a closed dropdown menu: it's in the
@@ -235,7 +293,7 @@ def main():
                     info(f"{YELLOW}click failed: {str(e).splitlines()[0]}{RESET}")
                     if target["href"].startswith("http"):
                         info(f"it's a link, so open its URL instead: {target['href']}")
-                        page.goto(target["href"], wait_until="load")
+                        open_url(page, target["href"])
                         did = f"click on {answer['link']} {target['text']!r} failed, opened its URL instead"
                     else:
                         did = f"click on {answer['link']} {target['text']!r} failed"
@@ -290,6 +348,10 @@ def main():
     print(f"  a new browser per step: {steps} sessions -> at least {steps} units, {steps} x ~3s to connect"
           + (f", and {in_page_clicks} in-page change(s) lost (toggle, menu, banner)" if in_page_clicks else ""))
 
+    store.agent(db, run_id, site, status=final, browser_seconds=round(session, 1), units=units,
+                model_usd=round(dollars, 5), tokens_in=tokens_in, tokens_out=tokens_out,
+                page_status=", ".join(str(c) for c in sorted(set(codes))))
+
     # Timeline: one row for the browser, one for the model calls.
     width = 60
     end = now()
@@ -308,7 +370,7 @@ def main():
     print(f"\n{BOLD}Done in {end:.1f}s.{RESET} Journey in {out}/:")
     for r in journey:
         print(f"  {r['screenshot']:<16} {r['action']:<6} {r.get('link_text') or ''}")
-    print(f"  journey.jsonl")
+    print("  journey.jsonl")
     print(f"\nReplay the whole session, step by step: {BOLD}playwright show-trace {trace}{RESET}")
     print(f"{GREY}(or drop the file on https://trace.playwright.dev, it stays in your browser){RESET}")
 

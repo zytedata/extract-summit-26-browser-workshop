@@ -10,6 +10,7 @@ matches the schema you asked for, plus token counts and the cost.
 """
 
 import base64
+import http.client
 import json
 import os
 import re
@@ -97,7 +98,9 @@ def send(req, attempts=3):
             if e.code not in RETRY_STATUS or attempt == attempts:
                 raise SystemExit(f"OpenRouter said {e.code}: {e.read().decode()[:500]}")
             problem = f"OpenRouter said {e.code}"
-        except (urllib.error.URLError, ConnectionError, TimeoutError) as e:
+        # URLError: failed before the answer came. OSError and HTTPException:
+        # the connection dropped while reading the answer.
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
             if attempt == attempts:
                 raise SystemExit(f"Could not reach OpenRouter after {attempts} tries: {getattr(e, 'reason', e)}")
             problem = f"connection problem ({getattr(e, 'reason', e)})"

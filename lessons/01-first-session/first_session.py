@@ -54,7 +54,7 @@ def kb(n):
 proxy = f"proxy_type={args.proxy_type or 'auto'}, proxy_region={args.region or 'auto'}"
 step(f"Connect to browser.zyte.com over CDP (API key in the auth header, ttl=120, {proxy})")
 with zyte_page(ttl=120, proxy_type=args.proxy_type, proxy_region=args.region) as page:
-    info(f"connected. A Chrome is now running for you on Zyte's side. Billing started.")
+    info("connected. A Chrome is now running for you on Zyte's side. Billing started.")
     trace.show()
 
     step(f"Go to {URL} (first page of the session: Zyte picks the proxy for this site now)")
