@@ -6,6 +6,8 @@ No coding in this lesson. You run a script and read the output.
 
 ## The flow
 
+Animated version, on a real run: open [`diagrams/04-agent-loop.html`](../../diagrams/04-agent-loop.html) in your browser and press space. It walks through a recorded run on zyte.com, with the screenshots the model got: click Pricing, reject the cookie banner that hides the plans, scroll, done. At each step you see what the model answered, what our code did, and where the seconds and dollars went.
+
 ```mermaid
 flowchart TD
   pick["competitor from data/web-scraping.json<br/>Apify -> apify.com"] --> connect["connect: one Zyte browser session"]

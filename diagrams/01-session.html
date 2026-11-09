@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>One Zyte session</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="diagram.css" rel="stylesheet">
+</head>
+<body>
+<svg id="stage" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet"></svg>
+<div class="hud"><span id="step"></span> &nbsp; space / → next &nbsp; ← back &nbsp; r restart</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="diagram.js"></script>
+<script>
+// Lesson 01: one Zyte browser session, start to end, as a sequence diagram built phase by phase.
+const { el, txt, pill, arrow, pop, icon, run } = D;
+const C = { script: 300, browser: 860, proxy: 1240, site: 1640 };   // lifeline x
+const TOP = 300, BOTTOM = 1010, BAR_TOP = 322;
+const msg = (from, to, y, label, opts = {}) => arrow({ x1: C[from], y1: y, x2: C[to], y2: y, label, ...opts });
+
+run((tl, api) => {
+  const { stop, say } = api;
+  // header: title top left, the billing meter top right
+  txt('One Zyte browser session, start to end', { x: 60, y: 70, 'font-size': 34, fill: '#cfcfcf' });
+  el('rect', { x: 1340, y: 34, width: 520, height: 56, rx: 28, fill: 'var(--panel)', stroke: '#444', 'stroke-width': 2 });
+  const led = el('circle', { cx: 1376, cy: 62, r: 9, fill: '#555' });
+  const meter = txt('browser: not running', { x: 1398, y: 71, 'font-size': 24, class: 'mono', fill: 'var(--muted)' });
+  const clock = { s: 0 }, open = { from: Infinity, to: Infinity };
+  api.refresh = t => { if (t >= open.from && t < open.to) meter.textContent = `open ${clock.s.toFixed(1)} s · billing`; };
+
+  // the Zyte cloud group, drawn first so it sits behind everything
+  const cloud = el('g', { opacity: 0 });
+  el('rect', { x: 690, y: 104, width: 740, height: 930, rx: 18, fill: '#234d4155', stroke: 'var(--green)', 'stroke-opacity': 0.5, 'stroke-width': 2 }, cloud);
+  pill(cloud, 1060, 104, 'Zyte cloud', { stroke: 'var(--green)', fill: 'var(--green-tint)', color: 'var(--green)', size: 22 }).open();
+
+  // actors and lifelines
+  const actors = [
+    ['script', 'Your script', 'Playwright, on your laptop'],
+    ['browser', 'Zyte browser', 'real Chrome, one per session'],
+    ['proxy', 'Proxy', 'picked for the site'],
+    ['site', 'Website', ''],
+  ].map(([k, name, sub]) => {
+    const g = el('g', { opacity: 0 });
+    icon[k](g, C[k], 170);
+    txt(name, { x: C[k], y: 262, 'text-anchor': 'middle', 'font-size': 32 }, g);
+    if (sub) txt(sub, { x: C[k], y: 290, 'text-anchor': 'middle', 'font-size': 19, fill: 'var(--muted)' }, g);
+    const life = el('line', { x1: C[k], y1: TOP + 12, x2: C[k], y2: TOP + 12, stroke: '#bdbdbd', 'stroke-width': 2 });
+    return { g, life };
+  });
+  // while the session is open, a green bar grows down the browser's lifeline: that's what you pay for
+  const bar = el('rect', { x: C.browser - 9, y: BAR_TOP, width: 18, height: 0, rx: 4, fill: 'var(--green)', opacity: 0.85 });
+  const tick = (to, barTo, dur = 0.6) => {
+    tl.to(clock, { s: to, duration: dur, ease: 'none' }, '<');
+    tl.to(bar, { attr: { height: barTo - BAR_TOP }, duration: dur, ease: 'none' }, '<');
+  };
+
+  // phase 0: the four parts
+  actors.forEach(({ g }, i) => pop(tl, g, i * 0.18));
+  actors.forEach(({ life }) => tl.to(life, { attr: { y2: BOTTOM }, duration: 0.6, ease: 'power1.inOut' }, 0.9));
+  tl.to(cloud, { opacity: 1, duration: 0.5 }, 1.4);
+  stop();
+
+  // phase 1: connect, the session and billing start
+  msg('script', 'browser', 340, 'connect (API key, ttl=120)', { code: 'Browser.getVersion' })(tl);
+  open.from = tl.duration();
+  tl.to(led, { fill: 'var(--green)', duration: 0.2 }).to(meter, { fill: 'var(--green)', duration: 0.2 }, '<');
+  tick(2.1, 342, 0.3);
+  stop();
+
+  // phase 2: go to the first page
+  msg('script', 'browser', 420, 'go to url (first page)', { code: 'Page.navigate' })(tl);
+  tick(2.4, 430);
+  stop();
+
+  // phase 3: the first page decides the proxy
+  const pick = pill(undefined, (C.browser + C.proxy) / 2, 494, 'proxy picked for this site: datacenter, IE',
+                    { stroke: 'var(--yellow)', fill: 'var(--olive)', color: '#fff2b0', size: 22 });
+  const ring = el('circle', { cx: C.proxy, cy: 170, r: 64, fill: 'none', stroke: 'var(--yellow)', 'stroke-width': 3, opacity: 0 });
+  pick.show(tl);
+  tl.to(ring, { opacity: 1, duration: 0.3 }, '<');
+  tick(2.6, 500, 0.3);
+  stop();
+
+  // phase 4: the request goes out through the proxy
+  msg('browser', 'proxy', 560, 'request page')(tl);
+  msg('proxy', 'site', 620, 'from the proxy IP')(tl);
+  tl.to(ring, { opacity: 0, duration: 0.3 }, '<');
+  tick(3.0, 630);
+  stop();
+
+  // phase 5: the site answers with a challenge, Zyte handles it, the real page comes back
+  msg('site', 'browser', 690, null, { dashed: true })(tl);
+  const mid = (C.site + C.browser) / 2;
+  const chal = pill(undefined, mid, 690, '✕  challenge page', { stroke: 'var(--red)', fill: 'var(--red-tint)', color: '#ffb4b4' });
+  const ok = pill(undefined, mid, 690, '✓  HTML, JS, images', { stroke: 'var(--green)', fill: 'var(--green-tint)', color: '#9ff0cc' });
+  const handled = txt('handled by Zyte: fingerprint, CAPTCHA, Cloudflare', { x: mid, y: 736, 'text-anchor': 'middle',
+                       'font-size': 19, fill: 'var(--muted)', class: 'halo', opacity: 0 });
+  chal.show(tl);
+  tl.to({}, { duration: 0.6 });
+  tl.to(chal.g, { opacity: 0, duration: 0.2 });
+  ok.show(tl);
+  tl.to(handled, { opacity: 1, duration: 0.3 }, '<');
+  tick(4.2, 700, 1.4);
+  stop();
+
+  // phase 6: page loaded, back to your script
+  msg('browser', 'script', 780, 'page loaded', { dashed: true })(tl);
+  tick(4.5, 790, 0.4);
+  stop();
+
+  // phase 7: capture what the model will read in lesson 03
+  msg('script', 'browser', 850, 'screenshot, get HTML', { code: 'Page.captureScreenshot' })(tl);
+  msg('browser', 'script', 930, 'jpg, HTML', { dashed: true })(tl);
+  tick(5.4, 935);
+  stop();
+
+  // phase 8: close, billing stops
+  msg('script', 'browser', 990, 'Browser.close', { color: 'var(--red)' })(tl);
+  tick(5.6, 996, 0.3);
+  open.to = tl.duration() - 0.1;
+  say(meter, 'closed · 5.6 s = 1 unit', open.to);
+  tl.to(led, { fill: '#555', duration: 0.2 });
+  tl.to(bar, { opacity: 0.45, duration: 0.3 }, '<');
+  stop();
+});
+</script>
+</body>
+</html>

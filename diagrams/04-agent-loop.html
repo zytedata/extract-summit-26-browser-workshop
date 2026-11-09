@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The agent loop</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="diagram.css" rel="stylesheet">
+</head>
+<body>
+<svg id="stage" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet"></svg>
+<div class="hud"><span id="step"></span> &nbsp; space / → next &nbsp; ← back &nbsp; r restart</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="diagram.js"></script>
+<script>
+// Lesson 04: the agent loop, on a recorded run on zyte.com (output/04/zyte.com/journey.jsonl and its screenshots):
+// click 76 'Pricing', click 5 'Reject all' on the cookie banner, scroll, done. Timings from its trace.zip.
+// One browser for the whole run, the model only ever says what to do next, our code does it.
+const { el, txt, pill, arrow, pop, icon, run } = D;
+
+run((tl, api) => {
+  const { stop, say } = api;
+
+  // header and meter
+  txt('The agent loop: Claude drives one Zyte browser', { x: 60, y: 70, 'font-size': 34, fill: '#cfcfcf' });
+  el('rect', { x: 1240, y: 34, width: 620, height: 56, rx: 28, fill: 'var(--panel)', stroke: '#444', 'stroke-width': 2 });
+  const led = el('circle', { cx: 1276, cy: 62, r: 9, fill: '#555' });
+  const meter = txt('browser: not running', { x: 1298, y: 71, 'font-size': 24, class: 'mono', fill: 'var(--muted)' });
+  const m = { s: 0, usd: 0, step: 0 }, open = { from: Infinity, to: Infinity };
+  api.refresh = t => {
+    if (t >= open.from && t < open.to)
+      meter.textContent = `step ${Math.round(m.step)} · open ${m.s.toFixed(1)} s · $${m.usd.toFixed(4)}`;
+  };
+
+  // ── left: the Zyte browser, showing the screenshots the model got at each step ──
+  const SX = 92, SY = 193, SW = 756, SH = 372, k = SW / 1920;          // screenshot box; k maps screenshot px to here
+  const at = (x, y) => [SX + x * k, SY + y * k];
+  const cloud = el('g', { opacity: 0 });
+  el('rect', { x: 50, y: 112, width: 840, height: 516, rx: 18, fill: '#234d4155', stroke: 'var(--green)', 'stroke-opacity': 0.5, 'stroke-width': 2 }, cloud);
+  pill(cloud, 470, 112, 'Zyte browser · one session, the whole run', { stroke: 'var(--green)', fill: 'var(--green-tint)', color: 'var(--green)', size: 22 }).open();
+  const win = el('g', { opacity: 0 });
+  el('rect', { x: 90, y: 150, width: 760, height: SH + 46, rx: 12, fill: '#1c1c1c', stroke: 'var(--cyan)', 'stroke-width': 3 }, win);
+  el('line', { x1: 90, y1: 192, x2: 850, y2: 192, stroke: 'var(--cyan)', 'stroke-width': 2 }, win);
+  [0, 1, 2].forEach(i => el('circle', { cx: 114 + i * 18, cy: 171, r: 6, fill: 'none', stroke: 'var(--cyan)', 'stroke-width': 2 }, win));
+  el('rect', { x: 180, y: 158, width: 520, height: 26, rx: 13, fill: '#2c2c2c' }, win);
+  const url = txt('', { x: 198, y: 177, 'font-size': 17, class: 'mono', fill: '#cfcfcf' }, win);
+  el('rect', { x: SX, y: SY, width: SW, height: SH }, el('clipPath', { id: 'screen' }));
+  const screen = el('g', { 'clip-path': 'url(#screen)' }, win);
+  const shots = [1, 2, 3, 4].map(i => el('image', { href: `assets/zyte-0${i}.jpg`, x: SX, y: SY, width: SW, height: SH, opacity: 0 }, screen));
+
+  // the numbered tags our capture puts on links and buttons, so the model can answer "click 76"
+  const tag = (n, x, y) => {
+    const g = el('g', { opacity: 0 });
+    el('rect', { x: x - 24, y: y - 15, width: 48, height: 28, rx: 6, fill: 'var(--yellow)' }, g);
+    txt(String(n), { x, y: y + 6, 'text-anchor': 'middle', 'font-size': 17, class: 'mono', fill: '#1c1c1c' }, g);
+    return g;
+  };
+  const [px, py] = at(455, 116), [rx, ry] = at(1609, 896);
+  const tagPricing = tag(76, px, py + 24), tagReject = tag(5, rx - 74, ry);
+  const bannerTop = at(0, 737)[1];
+  const banner = el('rect', { x: SX + 2, y: bannerTop, width: SW - 4, height: SY + SH - bannerTop - 2, rx: 4, fill: '#e5484d22', stroke: 'var(--red)', 'stroke-width': 3, opacity: 0 });
+  const [tx, ty] = at(441, 88), [tx2, ty2] = at(1465, 392);
+  const table = el('rect', { x: tx, y: ty, width: tx2 - tx, height: ty2 - ty, rx: 6, fill: '#1ec98a1a', stroke: 'var(--green)', 'stroke-width': 3, opacity: 0 });
+  const flash = el('rect', { x: SX, y: SY, width: SW, height: SH, fill: '#fff', opacity: 0 });
+  const ripple = el('circle', { r: 10, fill: 'none', stroke: 'var(--yellow)', 'stroke-width': 4, opacity: 0 });
+  const stateNote = pill(undefined, 470, 628, 'no page load: same browser, the cookie choice stays',
+                         { stroke: 'var(--green)', fill: 'var(--green-tint)', color: '#9ff0cc', size: 20 });
+
+  // ── right: the loop, four steps ──
+  const node = (x, y, w, h, title) => {
+    const g = el('g', { opacity: 0 });
+    const r = el('rect', { x: x - w / 2, y: y - h / 2, width: w, height: h, rx: 14, fill: '#2a2a2a', stroke: '#6a6a6a', 'stroke-width': 2 }, g);
+    txt(title, { x: x - w / 2 + 22, y: y - h / 2 + 36, 'font-size': 24, 'font-weight': 600, fill: '#fff' }, g);
+    return { g, r };
+  };
+  const cap = node(1110, 255, 360, 170, '1  capture');
+  const chips = ['screenshot', 'markdown', 'numbered links'].map((s, i) =>
+    pill(cap.g, 1000 + [0, 128, 270][i] + [44, 50, 72][i], 290, s, { size: 18, stroke: 'var(--cyan)', color: 'var(--cyan)' }));
+  const mod = node(1660, 255, 380, 170, '2  ask Claude');
+  icon.model(mod.g, 1530, 290);
+  txt('Claude Haiku, via OpenRouter', { x: 1592, y: 244, 'font-size': 18, fill: 'var(--muted)' }, mod.g);
+  txt('page + goal + steps so far', { x: 1592, y: 284, 'font-size': 16, class: 'mono', fill: '#e6e6e6' }, mod.g);
+  const modTime = txt('', { x: 1592, y: 312, 'font-size': 16, class: 'mono', fill: 'var(--yellow)' }, mod.g);
+  const dec = node(1660, 560, 460, 250, '3  answer (JSON)');
+  const decLines = [0, 1, 2, 3, 4].map(i => txt('', { x: 1452, y: 518 + i * 30, 'font-size': 19, class: 'mono pre', fill: '#e6e6e6' }, dec.g));
+  const act = node(1110, 560, 360, 170, '4  act');
+  const actText = txt('', { x: 952, y: 600, 'font-size': 24, class: 'mono', fill: 'var(--yellow)' }, act.g);
+  txt('our code does it, not the model', { x: 952, y: 632, 'font-size': 17, fill: 'var(--muted)' }, act.g);
+  const loopArrows = [
+    arrow({ x1: 1290, y1: 255, x2: 1470, y2: 255 }),
+    arrow({ x1: 1660, y1: 340, x2: 1660, y2: 435 }),
+    arrow({ x1: 1430, y1: 560, x2: 1290, y2: 560 }),
+    arrow({ x1: 1110, y1: 475, x2: 1110, y2: 340, label: 'loop', labelSize: 20 }),
+  ];
+  const stepBadge = txt('', { x: 1385, y: 420, 'text-anchor': 'middle', 'font-size': 22, class: 'mono', fill: 'var(--muted)' });
+  const nodes = [cap, mod, dec, act];
+  const light = i => nodes.forEach((n, j) => tl.to(n.r, { fill: j === i ? '#3b3b22' : '#2a2a2a', stroke: j === i ? '#dfc765' : '#6a6a6a', duration: 0.25 }, '<'));
+
+  // ── bottom left: steps so far, sent with every model call ──
+  const mem = el('g', { opacity: 0 });
+  el('rect', { x: 50, y: 700, width: 840, height: 190, rx: 14, fill: '#2a2a2a', stroke: '#6a6a6a', 'stroke-width': 2, 'stroke-dasharray': '8 6' }, mem);
+  txt('steps so far: sent with every model call', { x: 72, y: 734, 'font-size': 20, fill: 'var(--muted)' }, mem);
+  const memLines = [
+    "1. home: clicked 76 'Pricing'",
+    "2. /pricing/: clicked 5 'Reject all'. Saved: from $0.06 /1k",
+    '3. /pricing/: scrolled down',
+    '4. /pricing/: done. Saved: 4 tiers + Enterprise, 0.06 to 1.27 /1k',
+  ].map((s, i) => txt(s, { x: 72, y: 772 + i * 30, 'font-size': 19, class: 'mono', fill: '#e6e6e6', opacity: 0 }, mem));
+
+  // ── bottom right: this run vs a new browser per step (shown at the end) ──
+  const cmp = el('g', { opacity: 0 });
+  el('rect', { x: 960, y: 700, width: 440, height: 190, rx: 14, fill: '#234d41', stroke: 'var(--green)', 'stroke-width': 2 }, cmp);
+  txt('✓  one browser, the whole run', { x: 984, y: 740, 'font-size': 22, fill: '#9ff0cc' }, cmp);
+  ['1 session, 54 s = 4 units', 'cookie choice and scroll kept', '4 steps, done'].forEach((s, i) => txt(s, { x: 984, y: 782 + i * 32, 'font-size': 20, fill: '#e6e6e6' }, cmp));
+  el('rect', { x: 1420, y: 700, width: 440, height: 190, rx: 14, fill: '#582828', stroke: 'var(--red)', 'stroke-width': 2 }, cmp);
+  txt('✕  new browser every step', { x: 1444, y: 740, 'font-size': 22, fill: '#ffb4b4' }, cmp);
+  ['4 sessions, about the same 4 units', '+3 s connect each, a new IP', 'the cookie banner is back every time'].forEach((s, i) => txt(s, { x: 1444, y: 782 + i * 32, 'font-size': 20, fill: '#e6e6e6' }, cmp));
+
+  // ── bottom: timeline, the browser bar with the model calls inside it ──
+  const X = t => 120 + t * 30.5, TY = 972;
+  const axis = el('g', { opacity: 0 });
+  txt('browser open', { x: 120, y: TY - 20, 'font-size': 18, fill: 'var(--green)' }, axis);
+  el('rect', { x: 250, y: TY - 34, width: 18, height: 18, rx: 4, fill: '#dfc76540', stroke: 'var(--yellow)', 'stroke-width': 2 }, axis);
+  txt('model thinking', { x: 276, y: TY - 20, 'font-size': 18, fill: 'var(--yellow)' }, axis);
+  [15, 30, 45].forEach((s, i) => {
+    el('line', { x1: X(s), y1: TY - 40, x2: X(s), y2: TY + 30, stroke: '#888', 'stroke-width': 2, 'stroke-dasharray': '6 6' }, axis);
+    txt(`${s}s: unit ${i + 2}`, { x: X(s) + 8, y: TY - 24, 'font-size': 15, class: 'mono', fill: '#999' }, axis);
+  });
+  [0, 10, 20, 30, 40, 50].forEach(s => txt(`${s}s`, { x: X(s), y: TY + 46, 'text-anchor': 'middle', 'font-size': 15, class: 'mono', fill: '#777' }, axis));
+  const tbar = el('rect', { x: X(0), y: TY, width: 0, height: 24, rx: 6, fill: 'var(--green)', opacity: 0.85 });
+  const go = (to, dur = 0.6) => {
+    tl.to(tbar, { attr: { width: X(to) - X(0) }, duration: dur, ease: 'none' }, '<');
+    tl.to(m, { s: to, duration: dur, ease: 'none' }, '<');
+  };
+  let spent = 0;
+  const think = (from, to, usd) => {
+    const g = el('g', { opacity: 0 });
+    el('rect', { x: X(from), y: TY - 8, width: X(to) - X(from), height: 40, rx: 6, fill: '#dfc76540', stroke: 'var(--yellow)', 'stroke-width': 2 }, g);
+    txt(`${(to - from).toFixed(1)} s`, { x: (X(from) + X(to)) / 2, y: TY + 18, 'text-anchor': 'middle', 'font-size': 16, class: 'mono', fill: '#fff' }, g);
+    tl.to(g, { opacity: 1, duration: 0.3 }, '<');
+    tl.fromTo(m, { usd: spent }, { usd: spent + usd, duration: 0.6, immediateRender: false }, '<');
+    spent += usd;
+  };
+  const answer = (lines, time) => { decLines.forEach((e, i) => say(e, lines[i] || '')); say(modTime, time); };
+  const step = n => { tl.to(m, { step: n, duration: 0.01 }); say(stepBadge, `step ${n} of max 6`); };
+  const capture = () => { light(0); tl.to(flash, { opacity: 0.4, duration: 0.08 }, '<').to(flash, { opacity: 0, duration: 0.3 }); };
+  const click = (x, y) => tl.set(ripple, { attr: { cx: x, cy: y } }, '<')
+    .fromTo(ripple, { attr: { r: 8 }, opacity: 1 }, { attr: { r: 46 }, opacity: 0, duration: 0.5, immediateRender: false }, '<');
+  const swap = (from, to) => tl.to(shots[from], { opacity: 0, duration: 0.3 }).to(shots[to], { opacity: 1, duration: 0.3 }, '<');
+
+  // phase 0: the parts
+  tl.to(cloud, { opacity: 1, duration: 0.4 }, 0);
+  pop(tl, win, 0.2);
+  nodes.forEach((n, i) => pop(tl, n.g, 0.5 + i * 0.15));
+  loopArrows.forEach((a, i) => a(tl, 1.2 + i * 0.25));
+  tl.to([mem, axis], { opacity: 1, duration: 0.4 }, 1.6);
+  chips.forEach(c => c.open());
+  tl.set(chips.map(c => c.g), { opacity: 0.35 }, 0);
+  stop();
+
+  // phase 1: connect, open the homepage
+  open.from = tl.duration();
+  say(url, 'https://www.zyte.com/');
+  tl.to(led, { fill: 'var(--green)', duration: 0.2 }).to(meter, { fill: 'var(--green)', duration: 0.2 }, '<');
+  tl.to(shots[0], { opacity: 1, duration: 0.4 }, '<');
+  go(9.6, 0.8);
+  stop();
+
+  // phase 2: step 1, capture
+  step(1);
+  capture();
+  tl.to(chips.map(c => c.g), { opacity: 1, duration: 0.25, stagger: 0.12 }, '<');
+  pop(tl, tagPricing, '<0.2');
+  go(13, 0.4);
+  stop();
+
+  // phase 3: step 1, ask the model
+  light(1);
+  answer(['page_type: "home"', 'prices: []', 'action: click 76 "Pricing"', 'why: the pricing page is one', '     click away, top nav'], '24,768 tokens in · 3.2 s');
+  think(13, 16.2, 0.0026);
+  go(16.2, 0.8);
+  light(2);
+  stop();
+
+  // phase 4: step 1, act: click 76, the pricing page loads
+  light(3);
+  say(actText, "click 76 'Pricing'");
+  click(px, py);
+  tl.to(tagPricing, { opacity: 0, duration: 0.2 });
+  say(url, 'https://www.zyte.com/pricing/');
+  swap(0, 1);
+  tl.to(memLines[0], { opacity: 1, duration: 0.3 }, '<');
+  go(19.8, 0.6);
+  stop();
+
+  // phase 5: step 2, capture and ask: the cookie banner covers the plans
+  step(2);
+  capture();
+  tl.to(banner, { opacity: 1, duration: 0.3 });
+  pop(tl, tagReject, '<0.1');
+  go(22.6, 0.3);
+  light(1);
+  answer(['page_type: "pricing"', 'prices: from $0.06 /1k', 'action: click 5 "Reject all"', 'why: the cookie banner hides', '     the plan cards'], '23,903 tokens in · 5.8 s');
+  think(22.6, 28.4, 0.0028);
+  go(28.4, 0.8);
+  light(2);
+  stop();
+
+  // phase 6: step 2, act: reject cookies, the banner is gone, same page
+  light(3);
+  say(actText, "click 5 'Reject all'");
+  click(rx, ry);
+  tl.to([tagReject, banner], { opacity: 0, duration: 0.2 });
+  swap(1, 2);
+  stateNote.show(tl, '<');
+  tl.to(memLines[1], { opacity: 1, duration: 0.3 }, '<');
+  go(31.7, 0.4);
+  stop();
+
+  // phase 7: step 3, capture and ask: the tier table is further down
+  step(3);
+  capture();
+  go(34.6, 0.3);
+  light(1);
+  answer(['page_type: "pricing"', 'prices: from $0.06 /1k', 'action: "scroll"', 'why: the tier table is', '     further down'], '23,833 tokens in · 5.8 s');
+  think(34.6, 40.4, 0.0027);
+  go(40.4, 0.8);
+  light(2);
+  stop();
+
+  // phase 8: step 3, act: scroll down
+  light(3);
+  say(actText, 'scroll down');
+  tl.set(shots[3], { opacity: 1, attr: { y: SY + SH } }, '<');
+  tl.to(shots[2], { attr: { y: SY - SH }, duration: 0.7, ease: 'power2.inOut' }, '<');
+  tl.to(shots[3], { attr: { y: SY }, duration: 0.7, ease: 'power2.inOut' }, '<');
+  tl.to(memLines[2], { opacity: 1, duration: 0.3 }, '<');
+  go(42, 0.4);
+  stop();
+
+  // phase 9: step 4: the usage table is on screen, no toggle, done
+  step(4);
+  capture();
+  tl.to(table, { opacity: 1, duration: 0.3 });
+  go(45, 0.3);
+  light(1);
+  answer(['page_type: "pricing"', 'prices: PAYG 0.13-1.27 /1k,', '  ... $500 0.06-0.61, Enterprise', 'action: "done"', 'why: usage table saved'], '23,900 tokens in · 9.1 s');
+  think(45, 54.1, 0.0032);
+  go(54.1, 0.9);
+  light(2);
+  tl.to(memLines[3], { opacity: 1, duration: 0.3 }, '<');
+  stop();
+
+  // phase 10: Browser.close, and what it cost
+  light(-1);
+  say(actText, 'Browser.close');
+  go(54.3, 0.2);
+  open.to = tl.duration();
+  say(meter, 'closed · 54 s = 4 units · $0.0113');
+  tl.to(led, { fill: '#555', duration: 0.2 });
+  tl.to(tbar, { opacity: 0.5, duration: 0.3 }, '<');
+  tl.to(cmp, { opacity: 1, duration: 0.4 });
+  stop();
+}, { hold: 3 });
+</script>
+</body>
+</html>

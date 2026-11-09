@@ -44,6 +44,8 @@ CDP (Chrome DevTools Protocol) is the same protocol Chrome DevTools uses. Playwr
 
 ## One session, start to end
 
+Animated version, step by step: open [`diagrams/01-session.html`](../../diagrams/01-session.html) in your browser and press space.
+
 ```mermaid
 sequenceDiagram
   participant S as Your script

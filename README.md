@@ -1,8 +1,8 @@
-# Build a browser agent on Zyte CDP
+# Give Claude a Chrome that doesn't get blocked
 
 Extract Summit 2026, Dublin. Hands-on workshop, 90 min.
 
-You are building a startup and you need to find out "who are our competitors and what do they charge?". In this workshop you answer it with a small browser agent. First you find the competitors from "best X companies" articles. Then the agent drives a real browser (Zyte Browser over CDP) on each competitor's site: it looks at the page, says what it sees, and decides where to click next until it has the prices. At the end you turn what it found into a pricing table.
+You are building a startup and you need to find out "who are our competitors and what do they charge?". In this workshop you answer it with a small browser agent: Claude, the model, called through an API, does the looking and deciding, and a real Chrome in Zyte's cloud does the browsing, without getting blocked. Any model that reads images works, Claude is the default. First you find the competitors from "best X companies" articles. Then the agent drives a real browser (Zyte Browser over CDP) on each competitor's site: it looks at the page, says what it sees, and decides where to click next until it has the prices. At the end you turn what it found into a pricing table.
 
 You don't write the agent, you run it step by step and look at what happens at each step. The code is plain Python with no framework, short enough to read end to end and take home.
 
@@ -114,6 +114,7 @@ shared/companies.py    looks up a company in the list from lesson 02
 shared/store.py        the SQLite database agents write to and the dashboard reads
 shared/cdp_trace.py    the raw CDP messages view in lesson 01
 lessons/NN-name/       one folder per lesson
+diagrams/              the lesson diagrams, animated: open in a browser, space for the next step
 data/                  the competitor list from lesson 02, and a recorded run for --replay
 output/                what your agent captures (git ignored)
 ```

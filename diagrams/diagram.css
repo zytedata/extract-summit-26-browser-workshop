@@ -1,0 +1,11 @@
+:root { --bg:#252525; --fg:#f4f4f4; --muted:#9a9a9a; --line:#f4f4f4; --cyan:#5ec8e8; --yellow:#dfc765;
+        --green:#1ec98a; --green-tint:#234d41; --red:#e5484d; --red-tint:#582828; --olive:#585828; --panel:#2f2f2f; }
+html, body { margin:0; height:100%; background:var(--bg); overflow:hidden; }
+body { font-family:Barlow, system-ui, sans-serif; color:var(--fg); }
+svg { width:100vw; height:100vh; display:block; cursor:pointer; }
+text { fill:var(--fg); font-family:Barlow, system-ui, sans-serif; font-weight:500; }
+.mono { font-family:"JetBrains Mono", monospace; }
+text.pre { white-space:pre; }
+.halo { paint-order:stroke; stroke:var(--bg); stroke-width:10px; stroke-linejoin:round; }
+.hud { position:fixed; right:20px; bottom:14px; font:500 14px "JetBrains Mono", monospace; color:#777; user-select:none; }
+.auto .hud { display:none; }
