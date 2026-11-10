@@ -110,3 +110,11 @@ def open_url(page, url):
     response = page.goto(url, wait_until="domcontentloaded", timeout=30_000)
     settle(page)
     return response
+
+
+def where(info):
+    """ipinfo.io JSON -> 'Los Angeles, US': where a website thinks you are.
+
+    Only the place. No IP address and no network name, so it's fine on a projector.
+    """
+    return ", ".join(x for x in (info.get("city"), info.get("country")) if x) or "unknown place"

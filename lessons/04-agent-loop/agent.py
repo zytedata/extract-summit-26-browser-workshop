@@ -29,7 +29,8 @@ from shared.capture import format_links, get_links, to_markdown  # noqa: E402
 from shared.companies import pick_url  # noqa: E402
 from shared.zyte_cdp import open_url, settle, trace_step, zyte_page  # noqa: E402
 
-GOAL = "Find the pricing and capture every price set, for example both monthly and annual prices."
+GOAL = ("Find the pricing and capture every price set, for example both monthly and annual prices, "
+        "and what each plan includes.")
 
 MAX_MARKDOWN = 30_000
 MAX_LINKS = 150
@@ -57,6 +58,9 @@ For every price also fill in the comparable form: usd_month is what the plan
 costs per month in USD as a number (for annual billing, the per-month price),
 null when it's usage based, custom or not in USD. billing is monthly, annual
 or none. kind is subscription, usage, custom or free.
+includes is what the plan gives you, in the company's own units, as the page
+says it: "$19 prepaid usage", "2,000 credits", "100K requests", "10 tasks".
+The 2 to 4 things that set the plan apart, short. Empty if the page doesn't say.
 If the page is a block page (CAPTCHA, access denied), say done.
 Answer with JSON only, in the shape you were given. Use only what is on the page."""
 
@@ -81,8 +85,12 @@ SCHEMA = {
                     "usd_month": {"type": ["number", "null"], "description": "per month in USD, null if usage based or custom"},
                     "billing": {"type": "string", "enum": ["monthly", "annual", "none"]},
                     "kind": {"type": "string", "enum": ["subscription", "usage", "custom", "free"]},
+                    "includes": {
+                        "type": "array", "items": {"type": "string"},
+                        "description": "what the plan gives you in the company's own units, short, e.g. '$19 prepaid usage', '2,000 credits'",
+                    },
                 },
-                "required": ["plan", "amount", "currency", "period", "usd_month", "billing", "kind"],
+                "required": ["plan", "amount", "currency", "period", "usd_month", "billing", "kind", "includes"],
                 "additionalProperties": False,
             },
         },
@@ -326,6 +334,8 @@ def run(args, url, site, company, out, model, t0, db, run_id):
             if key not in seen:
                 seen.add(key)
                 print(f"  step {r['step']}  {p['plan']:<22} {p['amount']:>10} {p['currency']:<4} / {p['period']}")
+                if p.get("includes"):
+                    print(f"  {GREY}{'':<30} includes: {', '.join(p['includes'])}{RESET}")
     if not seen:
         print("  none")
 

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Five competitors, three at a time</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="diagram.css" rel="stylesheet">
+</head>
+<body>
+<svg id="stage" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet"></svg>
+<div class="hud"><span id="step"></span> &nbsp; space / → next &nbsp; ← back &nbsp; r restart</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="diagram.js"></script>
+<script>
+// Lesson 05: explore.py runs the lesson 04 agent on the top 5 competitors, 3 at a time, each with its own process and
+// its own Zyte browser. Every step goes into one SQLite database, the dashboard re-reads it.
+// Timings are the recorded run in data/sample-run.db (2026-11-09), seconds from the start.
+const { svg, el, txt, pill, arrow, pop, icon, run } = D;
+
+const RUN = [   // company, lane, start, end, steps: [t, what]
+  ['Apify', 0, 0.3, 46.2, [[15.4, "click 'Pricing'"], [31.0, "click 'Bill annually'"], [44.8, 'done']]],
+  ['Bright Data', 1, 0.3, 57.3, [[13.0, 'click'], [23.3, "click 'Unlocker API'"], [43.5, 'click'], [56.3, 'done']]],
+  ['Diffbot', 2, 0.3, 27.3, [[13.0, "click 'PRICING'"], [26.5, 'done']]],
+  ['Import.io', 2, 28.5, 74.8, [[43.4, "click 'Pricing'"], [58.7, "click 'Monthly'"], [73.7, 'done']]],
+  ['Octoparse', 0, 47.2, 84.4, [[61.2, "click 'Pricing'"], [83.4, 'done']]],
+];
+const LANE_Y = [270, 490, 710], QX = 210, QY = i => 250 + i * 82, SLOT = 590;
+
+run((tl, api) => {
+  const { stop, say } = api;
+  txt('Five competitors, three at a time', { x: 60, y: 70, 'font-size': 34, fill: '#cfcfcf' });
+  el('rect', { x: 1340, y: 34, width: 520, height: 56, rx: 28, fill: 'var(--panel)', stroke: '#444', 'stroke-width': 2 });
+  const led = el('circle', { cx: 1376, cy: 62, r: 9, fill: '#555' });
+  const meter = txt('explore.py: not started', { x: 1398, y: 71, 'font-size': 24, class: 'mono', fill: 'var(--muted)' });
+  const clock = { s: 0 };
+  api.refresh = () => {
+    if (clock.s <= 0) return;
+    const open = RUN.filter(([, , a, b]) => clock.s >= a && clock.s < b).length;
+    meter.textContent = clock.s >= 84.4 ? 'done · 84 s · 15 units' : `${clock.s.toFixed(0)} s · ${open} browsers open`;
+  };
+
+  // ── left: the queue ──
+  const queue = el('g', { opacity: 0 });
+  el('rect', { x: 60, y: 160, width: 300, height: 500, rx: 18, fill: '#ffffff08', stroke: '#6a6a6a', 'stroke-width': 2 }, queue);
+  pill(queue, 210, 160, 'queue', { stroke: '#6a6a6a', fill: 'var(--panel)', color: '#cfcfcf', size: 22 }).open();
+  txt('top 5 by mentions,', { x: 210, y: 618, 'text-anchor': 'middle', 'font-size': 18, fill: 'var(--muted)' }, queue);
+  txt('from lesson 02', { x: 210, y: 642, 'text-anchor': 'middle', 'font-size': 18, fill: 'var(--muted)' }, queue);
+  const chips = RUN.map(([name], i) => pill(undefined, QX, QY(i), name, { size: 24 }).open());
+  chips.forEach(c => c.g.setAttribute('opacity', 0));
+
+  // ── middle: three lanes, each an agent.py process with its own browser ──
+  const lanes = LANE_Y.map(y => {
+    const g = el('g', { opacity: 0 });
+    const box = el('rect', { x: 440, y: y - 90, width: 800, height: 180, rx: 16, fill: '#2a2a2a', stroke: '#6a6a6a', 'stroke-width': 2 }, g);
+    txt('agent.py · own process', { x: 464, y: y - 56, 'font-size': 19, class: 'mono', fill: 'var(--muted)' }, g);
+    const b = el('g', { opacity: 0.3 }, g);
+    icon.browser(b, 1110, y - 6);
+    txt('own Zyte browser', { x: 1110, y: y + 76, 'text-anchor': 'middle', 'font-size': 18, fill: 'var(--muted)' }, g);
+    const status = txt('', { x: 470, y: y + 60, 'font-size': 21, class: 'mono', fill: 'var(--yellow)' }, g);
+    return { g, box, b, status };
+  });
+  chips.forEach(c => svg.appendChild(c.g));   // chips travel on top of the lanes
+
+  // ── right: the database and the dashboard, and a done list ──
+  const db = el('g', { opacity: 0 });
+  const DX = 1420, DY = 490;
+  el('path', { d: `M${DX - 70} ${DY - 60} v120 a70 22 0 0 0 140 0 v-120`, fill: 'var(--bg)', stroke: 'var(--cyan)', 'stroke-width': 3 }, db);
+  el('ellipse', { cx: DX, cy: DY - 60, rx: 70, ry: 22, fill: 'var(--bg)', stroke: 'var(--cyan)', 'stroke-width': 3 }, db);
+  [-10, 30].forEach(dy => el('path', { d: `M${DX - 70} ${DY + dy} a70 22 0 0 0 140 0`, fill: 'none', stroke: 'var(--cyan)', 'stroke-width': 2 }, db));
+  txt('workshop.db', { x: DX, y: DY + 118, 'text-anchor': 'middle', 'font-size': 26 }, db);
+  txt('every step, every price', { x: DX, y: DY + 146, 'text-anchor': 'middle', 'font-size': 18, fill: 'var(--muted)' }, db);
+  const dash = el('g', { opacity: 0 });
+  el('rect', { x: 1610, y: 190, width: 250, height: 170, rx: 10, fill: '#1c1c1c', stroke: 'var(--cyan)', 'stroke-width': 3 }, dash);
+  el('line', { x1: 1610, y1: 222, x2: 1860, y2: 222, stroke: 'var(--cyan)', 'stroke-width': 2 }, dash);
+  [0, 1, 2, 3, 4].forEach(i => el('rect', { x: 1630 + i * 44, y: 236, width: 34, height: 40, rx: 4, fill: '#2a2a2a', stroke: '#444' }, dash));
+  [[70, 'var(--green)'], [120, 'var(--yellow)'], [95, 'var(--cyan)']].forEach(([w, c], i) => el('rect', { x: 1630, y: 292 + i * 20, width: w, height: 12, rx: 6, fill: c }, dash));
+  txt('live dashboard', { x: 1735, y: 398, 'text-anchor': 'middle', 'font-size': 24 }, dash);
+  txt('re-reads every 2 s', { x: 1735, y: 424, 'text-anchor': 'middle', 'font-size': 18, fill: 'var(--muted)' }, dash);
+  const doneHead = txt('done', { x: 1735, y: 552, 'text-anchor': 'middle', 'font-size': 22, fill: 'var(--green)', opacity: 0 });
+  let doneN = 0;
+
+  // phase 0: the queue
+  tl.to(queue, { opacity: 1, duration: 0.4 }, 0);
+  chips.forEach((c, i) => pop(tl, c.g, 0.2 + i * 0.12));
+  stop();
+
+  // phase 1: three agents, three browsers
+  lanes.forEach((l, i) => pop(tl, l.g, i ? '-=0.15' : undefined));
+  stop();
+
+  // helpers to move chips and light lanes at a recorded second inside the current phase
+  const move = (i, x, y, pos) => tl.to(chips[i].g, { x: x - QX, y: y - QY(i), duration: 0.45, ease: 'power2.inOut' }, pos);
+  const light = (lane, on, pos) => {
+    tl.to(lanes[lane].box, { stroke: on ? 'var(--green)' : '#6a6a6a', fill: on ? '#234d4166' : '#2a2a2a', duration: 0.25 }, pos);
+    tl.to(lanes[lane].b, { opacity: on ? 1 : 0.3, duration: 0.25 }, pos);
+  };
+  const play = (s0, s1, dur) => {
+    const T0 = tl.duration(), at = s => T0 + (s - s0) / (s1 - s0) * dur;
+    tl.to(clock, { s: s1, duration: dur, ease: 'none' }, T0);
+    RUN.forEach(([name, lane, start, end, steps], i) => {
+      if (start >= s0 && start < s1) {
+        move(i, SLOT, LANE_Y[lane] - 20, at(start));
+        light(lane, true, at(start));
+        say(lanes[lane].status, 'connecting', at(start));
+      }
+      steps.forEach(([t, what], k) => {
+        if (t > s0 && t <= s1) say(lanes[lane].status, `step ${k + 1} · ${what}`, at(t));
+      });
+      if (end > s0 && end <= s1) {
+        light(lane, false, at(end));
+        say(lanes[lane].status, '', at(end) + 0.3);
+        move(i, 1735, 596 + doneN++ * 52, at(end));
+        if (doneN === 1) tl.to(doneHead, { opacity: 1, duration: 0.3 }, at(end));
+      }
+    });
+  };
+
+  // phase 2: the first three go; each opens its own browser
+  tl.to(led, { fill: 'var(--green)', duration: 0.2 }).to(meter, { fill: 'var(--green)', duration: 0.2 }, '<');
+  play(0, 6, 1.2);
+  stop();
+
+  // phase 3: every step goes into one database, the dashboard reads it
+  pop(tl, db);
+  LANE_Y.forEach((y, i) => arrow({ x1: 1240, y1: y, x2: 1340, y2: DY + (y - DY) * 0.25 })(tl, i ? '-=0.3' : undefined));
+  pill(undefined, 1290, 400, 'every step', { size: 18 }).show(tl);
+  pop(tl, dash);
+  arrow({ x1: 1470, y1: 420, x2: 1600, y2: 330, dashed: true })(tl);
+  stop();
+
+  // phase 4: Diffbot is done first, Import.io takes its place
+  play(6, 30, 3.2);
+  stop();
+
+  // phase 5: the rest, until the queue is empty
+  play(30, 84.4, 6);
+  tl.to(led, { fill: '#555', duration: 0.2 });
+  stop();
+
+  // phase 6: what it took
+  const sum = el('g', { opacity: 0 });
+  el('rect', { x: 440, y: 860, width: 1420, height: 150, rx: 14, fill: '#234d41', stroke: 'var(--green)', 'stroke-width': 2 }, sum);
+  txt('5 competitors in 84 s. Browsers were open 196 s in total: running 3 at a time saved 111 s', { x: 470, y: 912, 'font-size': 26, fill: '#e6e6e6' }, sum);
+  txt('15 browser units · $0.03 for the model · one site hangs, the other agents carry on', { x: 470, y: 960, 'font-size': 24, fill: '#9ff0cc' }, sum);
+  pop(tl, sum);
+  stop();
+});
+</script>
+</body>
+</html>

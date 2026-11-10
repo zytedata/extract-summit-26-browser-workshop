@@ -22,7 +22,7 @@ run((tl, api) => {
   const { stop, say } = api;
 
   // header and meter
-  txt('The agent loop: Claude drives one Zyte browser', { x: 60, y: 70, 'font-size': 34, fill: '#cfcfcf' });
+  txt('The agent loop: the model drives one Zyte browser', { x: 60, y: 70, 'font-size': 34, fill: '#cfcfcf' });
   el('rect', { x: 1240, y: 34, width: 620, height: 56, rx: 28, fill: 'var(--panel)', stroke: '#444', 'stroke-width': 2 });
   const led = el('circle', { cx: 1276, cy: 62, r: 9, fill: '#555' });
   const meter = txt('browser: not running', { x: 1298, y: 71, 'font-size': 24, class: 'mono', fill: 'var(--muted)' });
@@ -76,9 +76,9 @@ run((tl, api) => {
   const cap = node(1110, 255, 360, 170, '1  capture');
   const chips = ['screenshot', 'markdown', 'numbered links'].map((s, i) =>
     pill(cap.g, 1000 + [0, 128, 270][i] + [44, 50, 72][i], 290, s, { size: 18, stroke: 'var(--cyan)', color: 'var(--cyan)' }));
-  const mod = node(1660, 255, 380, 170, '2  ask Claude');
+  const mod = node(1660, 255, 380, 170, '2  ask the model');
   icon.model(mod.g, 1530, 290);
-  txt('Claude Haiku, via OpenRouter', { x: 1592, y: 244, 'font-size': 18, fill: 'var(--muted)' }, mod.g);
+  txt('Haiku, via OpenRouter', { x: 1592, y: 244, 'font-size': 18, fill: 'var(--muted)' }, mod.g);
   txt('page + goal + steps so far', { x: 1592, y: 284, 'font-size': 16, class: 'mono', fill: '#e6e6e6' }, mod.g);
   const modTime = txt('', { x: 1592, y: 312, 'font-size': 16, class: 'mono', fill: 'var(--yellow)' }, mod.g);
   const dec = node(1660, 560, 460, 250, '3  answer (JSON)');

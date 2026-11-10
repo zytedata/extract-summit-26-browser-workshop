@@ -135,13 +135,30 @@
         else { tl.pause().seek(stops[i]); refresh(); }
         at = i;
         if (stepEl) stepEl.textContent = `${at + 1} / ${stops.length}`;
+        if (embedded) parent.postMessage({ diagramAt: at, diagramSteps: stops.length }, '*');
       };
-      document.addEventListener('keydown', e => {
-        if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); go(at + 1); }
-        if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(at - 1);
-        if (e.key === 'r') { if (playing) playing.kill(); playing = null; tl.pause().seek(0); refresh(); at = 0; go(0); }
-      });
-      svg.addEventListener('click', () => go(at + 1));
+      const restart = () => { if (playing) playing.kill(); playing = null; tl.pause().seek(0); refresh(); at = 0; go(0); };
+      // Inside the deck (deck/index.html) the deck owns the keys: we pass key presses and clicks up to it,
+      // and it tells us when to step. That way → steps through the diagram, then moves on to the next slide.
+      const embedded = window.parent !== window;
+      if (embedded) {
+        document.body.classList.add('embedded');
+        document.addEventListener('keydown', e => { e.preventDefault(); parent.postMessage({ deckKey: e.key }, '*'); });
+        svg.addEventListener('click', () => parent.postMessage({ deckKey: 'ArrowRight' }, '*'));
+        addEventListener('message', ({ data }) => {
+          if (data.diagram === 'next') go(at + 1);
+          if (data.diagram === 'prev') go(at - 1);
+          if (data.diagram === 'end') go(stops.length - 1);
+          if (data.diagram === 'restart') restart();
+        });
+      } else {
+        document.addEventListener('keydown', e => {
+          if (e.key === ' ' || e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); go(at + 1); }
+          if (e.key === 'ArrowLeft' || e.key === 'PageUp') go(at - 1);
+          if (e.key === 'r') restart();
+        });
+        svg.addEventListener('click', () => go(at + 1));
+      }
       refresh();
       go(0);
     });

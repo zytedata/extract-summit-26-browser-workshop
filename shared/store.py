@@ -8,11 +8,12 @@ Four tables:
   runs     one row per explore.py (or single agent.py) run
   agents   one row per competitor in a run: status, steps, cost
   steps    one row per look-and-act step: url, reason, action
-  prices   one row per price an agent saw on a page
+  prices   one row per price an agent saw on a page, with what the plan includes
 
 WAL mode lets several agent processes write while the dashboard reads.
 """
 
+import json
 import os
 import sqlite3
 import time
@@ -40,7 +41,7 @@ CREATE TABLE IF NOT EXISTS steps (
 CREATE TABLE IF NOT EXISTS prices (
   run_id TEXT, site TEXT, company TEXT, step INTEGER, ts REAL,
   plan TEXT, amount TEXT, currency TEXT, period TEXT,
-  usd_month REAL, billing TEXT, kind TEXT, url TEXT
+  usd_month REAL, billing TEXT, kind TEXT, url TEXT, includes TEXT
 );
 """
 
@@ -50,6 +51,9 @@ def connect(path=DB):
     db = sqlite3.connect(path, timeout=10, isolation_level=None)  # autocommit
     db.execute("PRAGMA journal_mode=WAL")
     db.executescript(SCHEMA)
+    # databases made before prices had includes (a JSON list of what the plan gives you)
+    if "includes" not in [r[1] for r in db.execute("PRAGMA table_info(prices)")]:
+        db.execute("ALTER TABLE prices ADD COLUMN includes TEXT")
     db.row_factory = sqlite3.Row
     return db
 
@@ -76,12 +80,15 @@ def step(db, run_id, site, **fields):
 
 
 def prices(db, run_id, site, company, n, url, items):
+    """One row per price. includes is stored as a JSON list; a replay passes it on as it was stored."""
     now = time.time()
     db.executemany(
-        "INSERT INTO prices VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO prices (run_id, site, company, step, ts, plan, amount, currency, period,"
+        " usd_month, billing, kind, url, includes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
             (run_id, site, company, n, now, p["plan"], p["amount"], p["currency"], p["period"],
-             p.get("usd_month"), p.get("billing"), p.get("kind"), url)
+             p.get("usd_month"), p.get("billing"), p.get("kind"), url,
+             p["includes"] if isinstance(p.get("includes"), str) else json.dumps(p.get("includes") or []))
             for p in items
         ],
     )

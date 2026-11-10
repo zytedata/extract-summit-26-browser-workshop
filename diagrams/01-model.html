@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The browser is not on your laptop</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="diagram.css" rel="stylesheet">
+</head>
+<body>
+<svg id="stage" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet"></svg>
+<div class="hud"><span id="step"></span> &nbsp; space / → next &nbsp; ← back &nbsp; r restart</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="diagram.js"></script>
+<script>
+// Lesson 01, the mental model: your script on the laptop, a real Chrome in Zyte's cloud behind a proxy, the website,
+// and the model on the side. Built part by part: who talks to whom, over what.
+const { el, txt, pill, arrow, pop, icon, run } = D;
+const X = { script: 270, browser: 840, proxy: 1250, site: 1720 }, Y = 380;
+
+run((tl, api) => {
+  const { stop } = api;
+  txt('The browser is not on your laptop', { x: 60, y: 70, 'font-size': 34, fill: '#cfcfcf' });
+
+  // groups drawn first so they sit behind
+  const laptop = el('g', { opacity: 0 });
+  el('rect', { x: 60, y: 200, width: 420, height: 400, rx: 18, fill: '#ffffff08', stroke: '#6a6a6a', 'stroke-width': 2 }, laptop);
+  pill(laptop, 270, 200, 'Your laptop', { stroke: '#6a6a6a', fill: 'var(--panel)', color: '#cfcfcf', size: 22 }).open();
+  const cloud = el('g', { opacity: 0 });
+  el('rect', { x: 620, y: 130, width: 860, height: 640, rx: 18, fill: '#234d4155', stroke: 'var(--green)', 'stroke-opacity': 0.5, 'stroke-width': 2 }, cloud);
+  pill(cloud, 1050, 130, 'Zyte cloud', { stroke: 'var(--green)', fill: 'var(--green-tint)', color: 'var(--green)', size: 22 }).open();
+
+  const part = (k, name, sub) => {
+    const g = el('g', { opacity: 0 });
+    icon[k](g, X[k], Y);
+    txt(name, { x: X[k], y: Y + 92, 'text-anchor': 'middle', 'font-size': 32 }, g);
+    if (sub) txt(sub, { x: X[k], y: Y + 122, 'text-anchor': 'middle', 'font-size': 19, fill: 'var(--muted)' }, g);
+    return g;
+  };
+  const script = part('script', 'Your script', 'Python + Playwright');
+  const browser = part('browser', 'Zyte browser', 'real Chrome, one per session');
+  const proxy = part('proxy', 'Proxy', 'where the site thinks you are');
+  const site = part('site', 'Website', '');
+  const tag = (x, y, s, kind = 'yellow') => pill(undefined, x, y, s, kind === 'yellow'
+    ? { stroke: 'var(--yellow)', fill: 'var(--olive)', color: '#fff2b0', size: 20 }
+    : { stroke: 'var(--red)', fill: 'var(--red-tint)', color: '#ffb4b4', size: 20 });
+
+  // phase 0: your script, on your laptop
+  tl.to(laptop, { opacity: 1, duration: 0.4 }, 0);
+  pop(tl, script, 0.2);
+  stop();
+
+  // phase 1: it connects to a Chrome in Zyte's cloud, over CDP on a WebSocket
+  tl.to(cloud, { opacity: 1, duration: 0.4 });
+  pop(tl, browser, '<0.1');
+  arrow({ x1: 370, y1: 350, x2: 760, y2: 350, label: 'CDP over a WebSocket', labelSize: 22, code: 'wss://browser.zyte.com' })(tl);
+  stop();
+
+  // phase 2: Chrome does the unblocking
+  ['fingerprint, TLS', 'CAPTCHAs', 'challenges like Cloudflare'].forEach((s, i) => tag(X.browser, 580 + i * 56, s).show(tl, i ? '-=0.15' : undefined));
+  stop();
+
+  // phase 3: the first page decides the proxy, the request goes out from there
+  pop(tl, proxy);
+  arrow({ x1: 920, y1: Y, x2: 1165, y2: Y })(tl);
+  ['datacenter or residential', 'and a country'].forEach((s, i) => tag(X.proxy, 580 + i * 56, s).show(tl, i ? '-=0.15' : undefined));
+  pop(tl, site);
+  arrow({ x1: 1335, y1: Y, x2: 1650, y2: Y })(tl);
+  stop();
+
+  // phase 4: what comes back to your script. The site never sees your laptop
+  arrow({ x1: 760, y1: 430, x2: 370, y2: 430, label: 'screenshot, HTML', labelSize: 22, dashed: true })(tl);
+  tag(X.site, 580, '✕  never sees your laptop', 'red').show(tl);
+  stop();
+
+  // phase 5: the model, from lesson 03. It gets what the script captured, it answers with a decision
+  const model = el('g', { opacity: 0 });
+  icon.model(model, X.script, 920);
+  txt('Model, via OpenRouter', { x: 370, y: 912, 'font-size': 28 }, model);
+  txt('from lesson 03 · never touches the browser', { x: 370, y: 944, 'font-size': 19, fill: 'var(--muted)' }, model);
+  pop(tl, model);
+  arrow({ x1: 220, y1: 560, x2: 220, y2: 850 })(tl);
+  pill(undefined, 220, 690, 'screenshot + markdown', { size: 19 }).show(tl, '-=0.2');
+  arrow({ x1: 330, y1: 850, x2: 330, y2: 560, dashed: true })(tl);
+  pill(undefined, 330, 760, 'what to click', { size: 19 }).show(tl, '-=0.2');
+  stop();
+
+  // phase 6: what that means for your code
+  const note = el('g', { opacity: 0 });
+  el('rect', { x: 1000, y: 840, width: 860, height: 150, rx: 14, fill: '#2a2a2a', stroke: '#6a6a6a', 'stroke-width': 2 }, note);
+  txt('CDP is what Chrome DevTools speaks.', { x: 1028, y: 886, 'font-size': 24 }, note);
+  txt('connect_over_cdp(...)', { x: 1028, y: 928, 'font-size': 22, class: 'mono', fill: 'var(--yellow)' }, note);
+  txt('→ a normal Playwright page, just running somewhere else', { x: 1028, y: 964, 'font-size': 21, fill: '#cfcfcf' }, note);
+  pop(tl, note);
+  stop();
+});
+</script>
+</body>
+</html>

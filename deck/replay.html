@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recorded run</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root { --bg:#252525; --fg:#f4f4f4; --muted:#9a9a9a; --cyan:#5ec8e8; --yellow:#dfc765; --green:#1ec98a;
+        --green-tint:#234d41; --red:#e5484d; --panel:#2f2f2f; --line:#3a3a3a; }
+html, body { margin:0; height:100%; background:var(--bg); color:var(--fg); overflow:hidden; }
+body { font-family:Barlow, system-ui, sans-serif; font-weight:500; }
+.mono { font-family:"JetBrains Mono", monospace; }
+#stage { position:absolute; left:50%; top:50%; width:1920px; height:980px; transform-origin:0 0; padding:40px 60px; box-sizing:border-box;
+         display:flex; flex-direction:column; }
+
+header { display:flex; align-items:center; gap:28px; margin-bottom:26px; }
+header h1 { font-size:44px; font-weight:600; margin:0; }
+header .sub { font-size:22px; color:var(--muted); }
+.meters { margin-left:auto; display:flex; gap:14px; }
+.meter { background:var(--panel); border-radius:12px; padding:10px 18px; min-width:120px; }
+.meter b { display:block; font:700 30px "JetBrains Mono", monospace; }
+.meter span { font-size:17px; color:var(--muted); }
+.controls { display:flex; gap:8px; }
+.controls button { font:600 20px Barlow, sans-serif; color:var(--fg); background:#ffffff14; border:0; border-radius:8px; padding:10px 16px; cursor:pointer; }
+.controls button:hover { background:#ffffff28; }
+.controls button.on { background:var(--green); color:#000; }
+
+/* live view: agents left, plans filling in right */
+.live { display:flex; gap:40px; flex:1; min-height:0; }
+.agents { width:640px; flex:none; display:flex; flex-direction:column; gap:14px; }
+.card { background:var(--panel); border-radius:12px; padding:10px 20px; border-left:6px solid #444; transition:border-color .3s; }
+.card.running { border-left-color:var(--green); }
+.card.done { border-left-color:#5a5a5a; }
+.card.done .url { color:var(--muted); }
+.card .top { display:flex; align-items:baseline; gap:14px; }
+.card .name { font-size:27px; font-weight:700; }
+.card .state { font:500 19px "JetBrains Mono", monospace; color:var(--yellow); }
+.card.done .state { color:var(--green); }
+.card.waiting .state { color:var(--muted); }
+.card .url { font:400 16px "JetBrains Mono", monospace; color:var(--cyan); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.card .why { font-size:18px; color:#cfcfcf; font-style:italic; margin-top:4px; height:46px; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.dots { display:flex; gap:6px; margin-left:auto; }
+.dots i { width:14px; height:14px; border-radius:50%; background:#444; }
+.dots i.on { background:var(--green); }
+
+.plans { flex:1; min-width:0; display:flex; flex-direction:column; }
+.plans h2 { font-size:28px; font-weight:600; margin:0 0 10px; }
+.plans h2 span { font-size:20px; color:var(--muted); font-weight:500; margin-left:12px; }
+table { border-collapse:collapse; width:100%; table-layout:fixed; }
+td { padding:5px 14px 5px 0; border-bottom:1px solid var(--line); font-size:18px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:top; }
+td.co { width:140px; color:var(--muted); }
+td.pl { width:170px; font-weight:700; }
+td.price { width:270px; font-family:"JetBrains Mono", monospace; font-size:16px; color:var(--yellow); }
+td.inc { color:#d8d8d8; }
+tr.new td { animation:flash 1.6s ease-out; }
+@keyframes flash { from { background:#1ec98a44; } to { background:transparent; } }
+.empty { color:var(--muted); font-size:24px; margin-top:30px; }
+
+/* plans view: one column per company, what each plan includes */
+.cols { display:flex; gap:22px; flex:1; min-height:0; }
+.col { flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; }
+.col h3 { font-size:30px; margin:0 0 4px; }
+.col h3 small { display:block; font:500 17px "JetBrains Mono", monospace; color:var(--cyan); margin-top:2px; }
+.plan { background:var(--panel); border-radius:10px; padding:10px 16px; }
+.plan .pn { display:flex; justify-content:space-between; gap:10px; font-size:22px; font-weight:700; }
+.plan .pn span { font:500 17px "JetBrains Mono", monospace; color:var(--yellow); text-align:right; }
+.plan ul { margin:6px 0 0; padding:0 0 0 18px; font-size:17px; line-height:1.3; color:#d4d4d4; }
+.plan ul li::marker { color:var(--green); }
+footer { font-size:22px; color:var(--muted); margin-top:auto; padding-top:12px; }
+footer b { color:var(--fg); }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script src="run.js"></script>
+<script>
+// Plays back a recorded lesson 05 run (deck/run.js, made by deck/export_run.py) with its real timing.
+// ?view=plans shows the end result instead: what each plan includes, one column per company.
+// Keys when opened on its own: space pause/play, r restart, s speed. Inside the deck, keys go to the deck.
+const stage = document.getElementById('stage');
+const fit = () => { const s = Math.min(innerWidth / 1920, innerHeight / 980); stage.style.transform = `scale(${s}) translate(-50%, -50%)`; };
+addEventListener('resize', fit); fit();
+const params = new URLSearchParams(location.search), view = params.get('view') || 'live';
+const embedded = window.parent !== window;
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+const h = (tag, cls, html = '') => { const e = document.createElement(tag); if (cls) e.className = cls; e.innerHTML = html; return e; };
+
+const END = Math.max(...RUN.agents.map(a => a.end));
+const stepsOf = site => RUN.steps.filter(s => s.site === site);
+const stepTime = Object.fromEntries(RUN.steps.map(s => [`${s.site}#${s.step}`, s.t]));
+// prices arrive with the step the model answered on
+const priced = RUN.prices.map(p => ({ ...p, t: stepTime[`${p.site}#${p.step}`] ?? 0 }));
+
+function shortPrice(p) {
+  if (p.kind === 'free') return 'free';
+  if (p.usd_month != null) return `$${+p.usd_month.toFixed(2)}/mo` + (p.billing === 'annual' ? ' annual' : '');
+  return p.kind === 'custom' ? 'custom' : p.amount;
+}
+// one row per plan, like the dashboard: its prices, short, and everything it includes
+function planRows(t) {
+  const rows = new Map();
+  for (const p of priced) {
+    if (p.t > t) continue;
+    const key = `${p.company}|${p.plan}`;
+    const r = rows.get(key) || { key, company: p.company, plan: p.plan, prices: [], includes: [], order: Infinity, t: p.t };
+    const sp = shortPrice(p); if (!r.prices.includes(sp)) r.prices.push(sp);
+    // keep $ prices (monthly, annual); an 'as shown' oddity like a slider only when there is nothing else
+    const dollars = r.prices.filter(x => /^\$\d/.test(x) || x === 'free' || x === 'custom');
+    r.prices = dollars.length ? dollars : r.prices.slice(0, 1);
+    p.includes.forEach(i => r.includes.includes(i) || r.includes.push(i));
+    if (p.usd_month != null) r.order = Math.min(r.order, p.usd_month);
+    if (p.kind === 'free') r.order = -1;
+    rows.set(key, r);
+  }
+  const companies = RUN.agents.map(a => a.company);
+  return [...rows.values()].sort((a, b) => companies.indexOf(a.company) - companies.indexOf(b.company) || a.order - b.order);
+}
+
+function agentState(a, t) {
+  const done = stepsOf(a.site).filter(s => s.t <= t), last = done[done.length - 1];
+  if (t < a.start) return { cls: 'waiting', state: 'waiting in the queue', done };
+  if (t >= a.end) return { cls: 'done', state: a.status, done, last, final: true };
+  if (!last) return { cls: 'running', state: t - a.start < 4 ? 'connecting' : 'step 1 · model is looking', done };
+  const did = last.action === 'click' ? `click${last.link_text ? ` '${last.link_text}'` : ''}` : last.action;
+  const looking = t - last.t > 2.5 && last.action !== 'done';
+  return { cls: 'running', state: looking ? `step ${last.step + 1} · model is looking` : `step ${last.step} · ${did}`, done, last };
+}
+
+// ---------- live view ----------
+let t = 0, playing = true, speed = +(params.get('speed') || 1), lastFrame = null;
+function buildLive() {
+  stage.innerHTML = `
+    <header>
+      <div><h1>Lesson 05, recorded</h1><div class="sub">${RUN.agents.length} competitors, 3 at a time · ${esc(RUN.model)} · recorded ${RUN.recorded.replace(/(\d{4})(\d\d)(\d\d)/, '$1-$2-$3')}</div></div>
+      <div class="meters">
+        <div class="meter"><b id="m-time">0s</b><span>elapsed</span></div>
+        <div class="meter"><b id="m-open">0</b><span>browsers open</span></div>
+        <div class="meter"><b id="m-units">0</b><span>browser units</span></div>
+        <div class="meter"><b id="m-usd">$0</b><span>model</span></div>
+      </div>
+      <div class="controls"><button id="b-play">pause</button><button id="b-speed">${speed}x</button><button id="b-restart">restart</button></div>
+    </header>
+    <div class="live">
+      <div class="agents" id="agents"></div>
+      <div class="plans"><h2>What each plan includes <span>in each company's own units</span></h2>
+        <table><tbody id="rows"></tbody></table><div class="empty" id="empty">Waiting for the first prices...</div></div>
+    </div>
+    <footer id="foot"></footer>`;
+  const agentsEl = document.getElementById('agents');
+  RUN.agents.forEach(a => {
+    const c = h('div', 'card waiting');
+    c.id = `a-${a.site}`;
+    c.innerHTML = `<div class="top"><span class="name">${esc(a.company)}</span><span class="state"></span>
+      <span class="dots">${Array.from({ length: a.steps }, () => '<i></i>').join('')}</span></div>
+      <div class="url"></div><div class="why"></div>`;
+    agentsEl.append(c);
+  });
+  document.getElementById('b-play').onclick = () => toggle();
+  document.getElementById('b-speed').onclick = () => cycleSpeed();
+  document.getElementById('b-restart').onclick = () => restart();
+}
+const shown = new Set();
+function renderLive() {
+  for (const a of RUN.agents) {
+    const s = agentState(a, t), c = document.getElementById(`a-${a.site}`);
+    c.className = `card ${s.cls}`;
+    c.querySelector('.state').textContent = s.state;
+    c.querySelectorAll('.dots i').forEach((d, i) => d.classList.toggle('on', i < s.done.length));
+    // when it's done, the url line becomes the bill
+    c.querySelector('.url').textContent = s.final ? `${a.steps} steps · browser ${Math.round(a.browser_seconds)}s = ${a.units} units · model $${a.model_usd.toFixed(4)}`
+      : s.last ? s.last.url.replace(/^https?:\/\/(www\.)?/, '') : t >= a.start ? a.site : '';
+    c.querySelector('.why').textContent = s.last ? s.last.why : '';
+  }
+  const open = RUN.agents.filter(a => t >= a.start && t < a.end).length;
+  const units = RUN.agents.filter(a => t >= a.end).reduce((x, a) => x + a.units, 0);
+  const usd = RUN.steps.filter(s => s.t <= t).reduce((x, s) => x + (s.model_usd || 0), 0);
+  document.getElementById('m-time').textContent = `${Math.floor(t)}s`;
+  document.getElementById('m-open').textContent = open;
+  document.getElementById('m-units').textContent = units;
+  document.getElementById('m-usd').textContent = `$${usd.toFixed(3)}`;
+
+  const rows = planRows(t), body = document.getElementById('rows');
+  document.getElementById('empty').style.display = rows.length ? 'none' : '';
+  const sig = rows.map(r => r.key + r.prices.join() + r.includes.length).join('/');
+  if (body.dataset.sig !== sig) {
+    body.dataset.sig = sig; body.replaceChildren();
+    rows.forEach(r => {
+      const tr = h('tr', shown.has(r.key) ? '' : 'new');
+      shown.add(r.key);
+      tr.innerHTML = `<td class="co">${esc(r.company)}</td><td class="pl">${esc(r.plan)}</td><td class="price">${esc(r.prices.slice(0, 2).join(' · '))}</td><td class="inc">${esc(r.includes.slice(0, 3).join(' · '))}</td>`;
+      body.append(tr);
+    });
+  }
+  const browser = RUN.agents.reduce((x, a) => x + a.browser_seconds, 0);
+  document.getElementById('foot').innerHTML = t >= END
+    ? `<b>Done in ${Math.round(END)}s.</b> Browsers open ${Math.round(browser)}s in total, running 3 at a time saved ${Math.round(browser - END)}s. ${units} units, $${usd.toFixed(4)} for the model.`
+    : 'Each card is one agent from lesson 04 with its own Zyte browser. Green edge = browser open, billed.';
+}
+function frame(now) {
+  if (lastFrame != null && playing) t = Math.min(END, t + (now - lastFrame) / 1000 * speed);
+  lastFrame = now;
+  renderLive();
+  if (t >= END && playing) setPlaying(false);
+  requestAnimationFrame(frame);
+}
+function setPlaying(p) { playing = p; const b = document.getElementById('b-play'); if (b) b.textContent = p ? 'pause' : (t >= END ? 'replay' : 'play'); }
+function toggle() { if (t >= END) return restart(); setPlaying(!playing); }
+function restart() { t = 0; shown.clear(); document.getElementById('rows').dataset.sig = ''; setPlaying(true); }
+function cycleSpeed() { speed = { 1: 2, 2: 4, 4: 1 }[speed] || 1; document.getElementById('b-speed').textContent = `${speed}x`; }
+
+// ---------- plans view: the end result ----------
+function buildPlans() {
+  const rows = planRows(Infinity);
+  stage.innerHTML = `<header><div><h1>What each plan includes</h1>
+    <div class="sub">In each company's own units, as their pricing page says it. Found by the agents in the recorded run.</div></div></header>`;
+  const cols = h('div', 'cols');
+  RUN.agents.forEach(a => {
+    const col = h('div', 'col', `<h3>${esc(a.company)}<small>${esc(a.site)}</small></h3>`);
+    rows.filter(r => r.company === a.company).forEach(r => col.append(h('div', 'plan',
+      `<div class="pn">${esc(r.plan)}<span>${esc(r.prices.slice(0, 2).join(' · '))}</span></div>
+       <ul>${r.includes.slice(0, 3).map(i => `<li>${esc(i)}</li>`).join('')}</ul>`)));
+    cols.append(col);
+  });
+  stage.append(cols, h('footer', '', 'Credits, queries, tasks, prepaid dollars: every company sells a different unit, so plans compare on what you get, not on one price per request.'));
+}
+
+// keys: standalone the page handles them, inside the deck they go up to the deck
+addEventListener('keydown', e => {
+  if (embedded) { e.preventDefault(); parent.postMessage({ deckKey: e.key }, '*'); return; }
+  if (view !== 'live') return;
+  if (e.key === ' ') { e.preventDefault(); toggle(); }
+  if (e.key === 'r') restart();
+  if (e.key === 's') cycleSpeed();
+});
+
+document.fonts.ready.then(() => {
+  if (view === 'plans') buildPlans();
+  else { buildLive(); requestAnimationFrame(frame); }
+});
+</script>
+</body>
+</html>

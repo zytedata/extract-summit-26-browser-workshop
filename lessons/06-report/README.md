@@ -1,6 +1,6 @@
 # 06 Report
 
-Goal: answer the boss. Who are our competitors, and what do they charge?
+Goal: answer the boss. Who are our competitors, what do they charge, and what do you get for it?
 
 No coding in this lesson. You open the dashboard and read it.
 
@@ -18,6 +18,8 @@ You already watched the database fill up in lesson 05. Every price in it came fr
 The agent writes prices in two forms:
 - **as shown:** "19", "month + pay as you go, billed annually", "from 2,500", "custom"
 - **comparable:** price in USD per month as a number, monthly or annual billing, and the kind of price (subscription, usage, custom)
+
+And for each plan, **what it includes**: "$19 prepaid usage", "250,000 credits / month", "100 tasks". In the company's own units, as the page says it.
 
 The second form is what makes the charts possible. "$17/month billed annually" and "$0.13 per compute unit" are both prices, but only one of them is a plan you can put on a bar chart.
 
@@ -42,6 +44,8 @@ python lessons/05-explore-competitors/explore.py --replay --fast
 **Plan ladder.** Every plan of every competitor as a point. Who stops at a few hundred a month, who goes straight to "talk to sales"?
 
 **Annual discount.** Plans that show both monthly and annual prices, and the difference. That's the toggle from lesson 04 paying off: without the click, half of these numbers wouldn't exist.
+
+**What each plan includes.** One row per plan: its prices and what it gets you. Apify sells prepaid dollars and compute units, Diffbot credits, Import.io queries, Octoparse tasks. There's no common "price per request" across them, so you compare what each plan gets you. The same view as a slide: `deck/replay.html?view=plans`.
 
 **The table.** Every price with its competitor, plan, both forms, and the page it came from. Check a few against the screenshots in `output/05/<site>/`. The model reads prices well, but it's the step you'd verify before sending this to your boss.
 

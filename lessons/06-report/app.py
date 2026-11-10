@@ -8,6 +8,7 @@ recorded run, no network needed:
     python lessons/05-explore-competitors/explore.py --replay
 """
 
+import json
 import os
 import sqlite3
 import sys
@@ -68,6 +69,28 @@ def card(col, a):
             st.caption(f"on {a.url}")
         if pd.notna(a.why):
             st.caption(f"_{a.why}_")
+
+
+def short_price(r):
+    if r.kind == "free":
+        return "free"
+    if pd.notna(r.usd_month):
+        return f"${r.usd_month:g}/mo" + (" annual" if r.billing == "annual" else "")
+    return r.kind if r.kind in ("free", "custom") else r.amount
+
+
+def plan_table(prices):
+    """One row per plan: its prices, short, and what it includes (seen on any step)."""
+    rows = []
+    for (company, plan), g in prices.groupby(["company", "plan"], sort=False):
+        items = []
+        for raw in g.includes.dropna():
+            items += [i for i in json.loads(raw) if i not in items]
+        rows.append({"company": company, "plan": plan,
+                     "price": " · ".join(dict.fromkeys(short_price(r) for r in g.itertuples())),
+                     "includes": " · ".join(items[:4]),
+                     "_order": g.usd_month.min() if g.usd_month.notna().any() else float("inf")})
+    return pd.DataFrame(rows).sort_values(["company", "_order"]).drop(columns="_order")
 
 
 @st.fragment(run_every="2s")
@@ -143,6 +166,12 @@ def dashboard():
         st.subheader("Annual discount")
         st.caption("Plans seen with both monthly and annual billing")
         st.dataframe(both, hide_index=True, width="stretch")
+
+    # What a plan gets you, in each company's own unit: credits, queries, tasks,
+    # prepaid dollars. Not comparable across companies, and that's the point.
+    st.subheader("What each plan includes")
+    st.caption("In the company's own units, as the pricing page says it")
+    st.dataframe(plan_table(prices), hide_index=True, width="stretch")
 
     st.subheader("Every price")
     st.caption("As shown on the page, and the comparable form the charts use")

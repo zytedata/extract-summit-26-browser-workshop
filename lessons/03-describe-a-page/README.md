@@ -1,14 +1,16 @@
 # 03 Describe a page
 
-Goal: open a competitor's homepage in a Zyte browser, hand what you captured to a model, and get back what the page is.
+Goal: open a company's homepage in a Zyte browser, hand what you captured to a model, and get back what the page is.
 
 No coding in this lesson. You run a script and read the output.
 
 ## What happens
 
+Animated version, with the numbers from a real run: open [`diagrams/03-describe.html`](../../diagrams/03-describe.html) in your browser and press space.
+
 ```mermaid
 flowchart LR
-  list["data/web-scraping.json<br/>Apify -> apify.com"] --> browser["Zyte browser<br/>open the page"]
+  list["data/web-scraping.json<br/>Zyte -> zyte.com"] --> browser["Zyte browser<br/>open the page"]
   browser --> cap["screenshot<br/>markdown<br/>numbered links"]
   cap --> model["model via OpenRouter"]
   model --> answer["JSON:<br/>company, page type,<br/>prices, pricing link"]
@@ -19,7 +21,7 @@ The browser part is lesson 01 again. The session closes before the model is aske
 The model gets three things in one message:
 - the **screenshot**, as an image. Good for layout, pricing cards, banners.
 - the **markdown**, the page text. Cheap to read, good for exact numbers.
-- the **numbered links**, so it can point at one ("link 12") instead of making up a URL.
+- the **numbered links**, so it can point at one ("link 76") instead of making up a URL.
 
 It answers in a fixed shape (a JSON schema in `describe.py`): company, a short description, page type, any prices on the page, and which link most likely leads to pricing. A fixed shape is what makes the answer usable by code. Lesson 04 clicks that pricing link.
 
@@ -29,9 +31,10 @@ It answers in a fixed shape (a JSON schema in `describe.py`): company, a short d
 python lessons/03-describe-a-page/describe.py
 ```
 
-It opens Apify, the most mentioned company in the list from lesson 02. Any other name from the list works, or a URL:
+It opens zyte.com, our own homepage, so you can check the answer against a site you know. Zyte is in the list from lesson 02. Any other name from the list works, or a URL:
 
 ```bash
+python lessons/03-describe-a-page/describe.py Apify
 python lessons/03-describe-a-page/describe.py Oxylabs
 python lessons/03-describe-a-page/describe.py https://www.zyte.com/pricing/
 ```
@@ -68,7 +71,7 @@ Files in `output/03/<site>/`:
 The browser session is recorded with Playwright tracing. Open it with:
 
 ```bash
-playwright show-trace output/03/apify.com/trace.zip
+playwright show-trace output/03/zyte.com/trace.zip
 ```
 
 Or drop the file on [trace.playwright.dev](https://trace.playwright.dev), it stays in your browser. You get a filmstrip of what the browser showed, every action with the page (the DOM) before and after it, the network requests and the console. Click "Go to" and look at the requests: that's everything the page pulled in while loading. None of it went through your laptop.
@@ -78,3 +81,7 @@ Or drop the file on [trace.playwright.dev](https://trace.playwright.dev), it sta
 - A pricing page: `describe.py https://www.zyte.com/pricing/`. Do the prices come out right? Compare with the screenshot.
 - Another model: `--model google/gemini-3.5-flash-lite` or `--model anthropic/claude-sonnet-5`. Same page, compare the answer, the time and the cost. Any model on [openrouter.ai/models](https://openrouter.ai/models) that takes images will work.
 - A few companies in a row. Which one breaks it? A cookie wall, a block page, a homepage with no link to pricing?
+
+## Research: what should the model see?
+
+Screenshot + markdown + links is one way to describe a page. Playwright's accessibility snapshot (`page.aria_snapshot(mode="ai")`) is another: roles, names and a ref on everything clickable. We measured five combinations on five real pages: which picks the right click, which reads prices right, what it costs in tokens and in browser seconds. Results, what we learned and the script to re-run it: [`research/`](../../research/).

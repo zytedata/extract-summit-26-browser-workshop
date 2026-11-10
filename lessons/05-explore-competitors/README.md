@@ -6,6 +6,8 @@ No coding in this lesson. You run a script and read the output.
 
 ## The flow
 
+Animated version, on the recorded run: open [`diagrams/05-explore.html`](../../diagrams/05-explore.html) in your browser and press space.
+
 ```mermaid
 flowchart LR
   list["data/web-scraping.json<br/>top 5 by mentions"] --> queue["queue<br/>Apify, Bright Data,<br/>Diffbot, Import.io,<br/>Octoparse"]
@@ -92,7 +94,9 @@ Replay a recorded run instead. It plays a saved run into the database with its o
 python lessons/05-explore-competitors/explore.py --replay
 ```
 
-The recording is `data/sample-run.db`: steps, reasons, prices and costs from a real run. No screenshots, those are pictures of other people's sites, so the cards show the page name instead.
+The recording is `data/sample-run.db`: steps, reasons, prices, what each plan includes and costs from a real run. No screenshots, those are pictures of other people's sites, so the cards show the page name instead.
+
+No Python either? Open `deck/replay.html` in your browser. It plays the same recording with its real timing: one card per agent, and the plans filling in as they're found. It's also a slide in the deck. After re-recording (`explore.py --save-sample`), refresh it with `python deck/export_run.py`.
 
 ## Try
 

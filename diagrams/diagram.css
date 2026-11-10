@@ -9,3 +9,4 @@ text.pre { white-space:pre; }
 .halo { paint-order:stroke; stroke:var(--bg); stroke-width:10px; stroke-linejoin:round; }
 .hud { position:fixed; right:20px; bottom:14px; font:500 14px "JetBrains Mono", monospace; color:#777; user-select:none; }
 .auto .hud { display:none; }
+.embedded .hud { display:none; }

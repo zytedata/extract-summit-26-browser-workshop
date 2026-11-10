@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Show a page to a model</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="diagram.css" rel="stylesheet">
+</head>
+<body>
+<svg id="stage" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid meet"></svg>
+<div class="hud"><span id="step"></span> &nbsp; space / → next &nbsp; ← back &nbsp; r restart</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="diagram.js"></script>
+<script>
+// Lesson 03: open the zyte.com homepage in a Zyte browser, capture it, close the browser, then ask the model what it is.
+// Numbers from a real run of describe.py (2026-11-10, output/03/zyte.com/). The page is assets/zyte-01.jpg, the same
+// homepage screenshot 04-agent-loop.html starts from. Tag numbers are real ones from that run's links.txt.
+const { el, txt, pill, arrow, pop, icon, run } = D;
+
+run((tl, api) => {
+  const { stop, say } = api;
+  txt('Show a page to a model', { x: 60, y: 70, 'font-size': 34, fill: '#cfcfcf' });
+  el('rect', { x: 1340, y: 34, width: 520, height: 56, rx: 28, fill: 'var(--panel)', stroke: '#444', 'stroke-width': 2 });
+  const led = el('circle', { cx: 1376, cy: 62, r: 9, fill: '#555' });
+  const meter = txt('browser: not running', { x: 1398, y: 71, 'font-size': 24, class: 'mono', fill: 'var(--muted)' });
+  const clock = { s: 0 }, open = { from: Infinity, to: Infinity };
+  api.refresh = t => { if (t >= open.from && t < open.to) meter.textContent = `open ${clock.s.toFixed(1)} s · billing`; };
+
+  // ── left: where the company comes from ──
+  const list = el('g', { opacity: 0 });
+  el('rect', { x: 60, y: 250, width: 340, height: 170, rx: 14, fill: '#2a2a2a', stroke: '#6a6a6a', 'stroke-width': 2 }, list);
+  txt('data/web-scraping.json', { x: 84, y: 290, 'font-size': 19, class: 'mono', fill: 'var(--muted)' }, list);
+  txt('Zyte', { x: 84, y: 345, 'font-size': 38, 'font-weight': 600 }, list);
+  txt('zyte.com · 2 mentions', { x: 84, y: 385, 'font-size': 20, class: 'mono', fill: 'var(--cyan)' }, list);
+
+  // ── middle: the Zyte browser showing the real homepage ──
+  const SX = 492, SY = 224, SW = 576, SH = 283, k = SW / 1920;          // screenshot box; k maps screenshot px to here
+  const at = (x, y) => [SX + x * k, SY + y * k];
+  const cloud = el('g', { opacity: 0 });
+  const cloudBox = el('rect', { x: 460, y: 130, width: 640, height: 420, rx: 18, fill: '#234d4155', stroke: 'var(--green)', 'stroke-opacity': 0.5, 'stroke-width': 2 }, cloud);
+  pill(cloud, 780, 130, 'Zyte browser', { stroke: 'var(--green)', fill: 'var(--green-tint)', color: 'var(--green)', size: 22 }).open();
+  const win = el('g', { opacity: 0 });
+  el('rect', { x: 490, y: 180, width: 580, height: SH + 46, rx: 12, fill: '#1c1c1c', stroke: 'var(--cyan)', 'stroke-width': 3 }, win);
+  el('line', { x1: 490, y1: 222, x2: 1070, y2: 222, stroke: 'var(--cyan)', 'stroke-width': 2 }, win);
+  [0, 1, 2].forEach(i => el('circle', { cx: 514 + i * 18, cy: 201, r: 6, fill: 'none', stroke: 'var(--cyan)', 'stroke-width': 2 }, win));
+  el('rect', { x: 580, y: 188, width: 440, height: 26, rx: 13, fill: '#2c2c2c' }, win);
+  const url = txt('', { x: 598, y: 207, 'font-size': 17, class: 'mono', fill: '#cfcfcf' }, win);
+  el('rect', { x: SX, y: SY, width: SW, height: SH }, el('clipPath', { id: 'screen' }));
+  const page = el('image', { href: 'assets/zyte-01.jpg', x: SX, y: SY, width: SW, height: SH, opacity: 0, 'clip-path': 'url(#screen)' }, win);
+  // numbered tags our capture puts on links and buttons (real numbers from links.txt; 76 is the Pricing link)
+  const tags = el('g', { opacity: 0 }, win);
+  [[1433, 37, 6], [238, 116, 9], [455, 116, 76], [686, 116, 13], [1441, 116, 15], [1561, 116, 16], [1738, 116, 17],
+   [620, 572, 21], [1609, 783, 3], [1609, 896, 5]].forEach(([sx, sy, n]) => {
+    const [x, y] = at(sx, sy);
+    el('rect', { x: x - 17, y: y - 11, width: 34, height: 22, rx: 5, fill: 'var(--yellow)' }, tags);
+    txt(String(n), { x, y: y + 5, 'text-anchor': 'middle', 'font-size': 14, class: 'mono', fill: '#1c1c1c' }, tags);
+  });
+  const [px, py] = at(455, 116);
+  const flash = el('rect', { x: SX, y: SY, width: SW, height: SH, fill: '#fff', opacity: 0 });
+  const closed = pill(undefined, 780, 400, 'Browser.close · billing stops', { stroke: 'var(--red)', fill: 'var(--red-tint)', color: '#ffb4b4', size: 24 });
+
+  // ── bottom middle: one message to the model ──
+  const msgBox = el('g', { opacity: 0 });
+  el('rect', { x: 470, y: 680, width: 620, height: 300, rx: 14, fill: '#2a2a2a', stroke: '#6a6a6a', 'stroke-width': 2, 'stroke-dasharray': '8 6' }, msgBox);
+  txt('one message to the model', { x: 494, y: 716, 'font-size': 20, fill: 'var(--muted)' }, msgBox);
+  const chips = [
+    ['screenshot', '101 KB jpeg · layout, cards, banners'],
+    ['markdown', 'HTML 580 KB → 58 KB · first 30k chars sent'],
+    ['numbered links', '125 · so it says "76", not a URL'],
+  ].map(([s, sub], i) => {
+    const y = 770 + i * 62;
+    const p = pill(undefined, 590, y, s, { size: 21, stroke: 'var(--cyan)', color: 'var(--cyan)', fill: 'var(--bg)' });
+    const t = txt(sub, { x: 700, y: y + 7, 'font-size': 19, fill: '#cfcfcf', opacity: 0 });
+    return { p, t };
+  });
+  const schema = txt('+ instructions + the answer shape (JSON schema)', { x: 494, y: 958, 'font-size': 18, fill: 'var(--muted)', opacity: 0 });
+
+  // ── right: the model and its answer ──
+  const model = el('g', { opacity: 0 });
+  icon.model(model, 1320, 830);
+  txt('Haiku, via OpenRouter', { x: 1320, y: 935, 'text-anchor': 'middle', 'font-size': 24 }, model);
+  const cost = txt('3.8 s · 24,159 tokens in · $0.0025', { x: 1320, y: 966, 'text-anchor': 'middle', 'font-size': 18, class: 'mono', fill: 'var(--yellow)' }, model);
+  const ans = el('g', { opacity: 0 });
+  el('rect', { x: 1380, y: 180, width: 480, height: 356, rx: 14, fill: '#2a2a2a', stroke: '#6a6a6a', 'stroke-width': 2 }, ans);
+  txt('answer (JSON)', { x: 1404, y: 218, 'font-size': 24, 'font-weight': 600, fill: '#fff' }, ans);
+  const lines = ['company: "Zyte"', 'page_type: "home"', 'prices: []', 'why: "... the nav item itself is', '      a dropdown button, so the', '      direct pricing URL link 76', '      is the best choice."', 'pricing_link: 76']
+    .map((s, i) => txt(s, { x: 1404, y: 262 + i * 36, 'font-size': 21, class: 'mono pre', fill: i === 7 ? 'var(--yellow)' : '#e6e6e6', opacity: 0 }, ans));
+  const ours = pill(undefined, 1620, 590, "our code: 76 → 'Pricing' · www.zyte.com/pricing/", { stroke: 'var(--green)', fill: 'var(--green-tint)', color: '#9ff0cc', size: 20 });
+  const next = txt("that's the click lesson 04 will make", { x: 1620, y: 642, 'text-anchor': 'middle', 'font-size': 19, fill: 'var(--muted)', opacity: 0 });
+  const ring = el('rect', { x: px - 26, y: py - 18, width: 52, height: 36, rx: 8, fill: 'none', stroke: 'var(--yellow)', 'stroke-width': 4, opacity: 0 });
+
+  // phase 0: the company from lesson 02
+  pop(tl, list, 0);
+  stop();
+
+  // phase 1: connect, open the homepage. The browser runs, billing starts
+  tl.to(cloud, { opacity: 1, duration: 0.4 });
+  pop(tl, win, '<0.1');
+  arrow({ x1: 400, y1: 335, x2: 485, y2: 335 })(tl);
+  open.from = tl.duration();
+  tl.to(led, { fill: 'var(--green)', duration: 0.2 }).to(meter, { fill: 'var(--green)', duration: 0.2 }, '<');
+  say(url, 'https://zyte.com/');
+  tl.to(page, { opacity: 1, duration: 0.5 });
+  tl.to(clock, { s: 9.1, duration: 0.6, ease: 'none' }, '<');
+  say(url, 'https://www.zyte.com/');
+  stop();
+
+  // phase 2: capture: screenshot, the page as markdown, numbered links
+  tl.to(flash, { opacity: 0.5, duration: 0.08 }).to(flash, { opacity: 0, duration: 0.3 });
+  tl.to(msgBox, { opacity: 1, duration: 0.3 }, '<');
+  chips[0].p.show(tl); tl.to(chips[0].t, { opacity: 1, duration: 0.3 }, '<');
+  tl.to(clock, { s: 15.2, duration: 0.5, ease: 'none' }, '<');
+  chips[1].p.show(tl); tl.to(chips[1].t, { opacity: 1, duration: 0.3 }, '<');
+  tl.to(clock, { s: 17.1, duration: 0.4, ease: 'none' }, '<');
+  tl.to(tags, { opacity: 1, duration: 0.3 });
+  chips[2].p.show(tl); tl.to(chips[2].t, { opacity: 1, duration: 0.3 }, '<');
+  tl.to(clock, { s: 18.0, duration: 0.4, ease: 'none' }, '<');
+  stop();
+
+  // phase 3: close before asking. A slow model doesn't keep a browser open
+  tl.to(clock, { s: 18.7, duration: 0.3, ease: 'none' });
+  open.to = tl.duration();
+  say(meter, 'closed · open 18.7 s = 2 units', open.to);
+  tl.to(led, { fill: '#555', duration: 0.2 }).to(meter, { fill: 'var(--muted)', duration: 0.2 }, '<');
+  tl.to(win, { opacity: 0.3, duration: 0.4 }, '<');
+  tl.to(cloudBox, { stroke: '#6a6a6a', fill: '#ffffff06', duration: 0.4 }, '<');
+  closed.show(tl);
+  stop();
+
+  // phase 4: the message goes to the model
+  tl.to(schema, { opacity: 1, duration: 0.3 });
+  pop(tl, model);
+  arrow({ x1: 1090, y1: 830, x2: 1240, y2: 830 })(tl);
+  stop();
+
+  // phase 5: its answer, in the shape we asked for
+  tl.to(ans, { opacity: 1, duration: 0.3 });
+  arrow({ x1: 1350, y1: 755, x2: 1470, y2: 544, dashed: true })(tl, '<');
+  lines.forEach((l, i) => tl.to(l, { opacity: 1, duration: 0.2 }, i ? '-=0.05' : undefined));
+  stop();
+
+  // phase 6: our code looks up 76 in its own list
+  ours.show(tl);
+  tl.to(next, { opacity: 1, duration: 0.3 });
+  tl.to(win, { opacity: 0.75, duration: 0.3 }, '<');
+  tl.to(ring, { opacity: 1, duration: 0.3 }, '<');
+  stop();
+});
+</script>
+</body>
+</html>

@@ -8,6 +8,6 @@ Follow the setup steps in the [main README](../../README.md), then run:
 python lessons/00-setup/check.py
 ```
 
-If you see an IP that isn't yours, you're connected through Zyte.
+It prints where websites think your laptop is, then where they think the Zyte browser is. Two different places means you're connected through Zyte. Only the city is printed, no IP addresses.
 
 Stuck for more than 10 minutes? Pair with your neighbour and keep going.

@@ -1,8 +1,10 @@
-# Give Claude a Chrome that doesn't get blocked
+# Building browser agents
+
+Driving a remote browser over CDP and WebSockets.
 
 Extract Summit 2026, Dublin. Hands-on workshop, 90 min.
 
-You are building a startup and you need to find out "who are our competitors and what do they charge?". In this workshop you answer it with a small browser agent: Claude, the model, called through an API, does the looking and deciding, and a real Chrome in Zyte's cloud does the browsing, without getting blocked. Any model that reads images works, Claude is the default. First you find the competitors from "best X companies" articles. Then the agent drives a real browser (Zyte Browser over CDP) on each competitor's site: it looks at the page, says what it sees, and decides where to click next until it has the prices. At the end you turn what it found into a pricing table.
+You are building a startup and you need to find out "who are our competitors, what do they charge, and what do you get for it?". In this workshop you answer it with a small browser agent: a model, called through an API, does the looking and deciding, and a real Chrome in Zyte's cloud does the browsing, without getting blocked. Any model that reads images works, the default is Claude Haiku. First you find the competitors from "best X companies" articles. Then the agent drives a real browser (Zyte Browser over CDP) on each competitor's site: it looks at the page, says what it sees, and decides where to click next until it has the plans: prices, and what each plan includes. At the end you turn what it found into a table of every plan.
 
 You don't write the agent, you run it step by step and look at what happens at each step. The code is plain Python with no framework, short enough to read end to end and take home.
 
@@ -20,7 +22,9 @@ You don't write the agent, you run it step by step and look at what happens at e
 
 No coding needed. Each lesson has a README and a script you run: it explains a step, you run it, you look at the output. Read the scripts if you want to see how it's done, they're short.
 
-Wifi gone? Lessons 05 and 06 work offline from a recorded run: `python lessons/05-explore-competitors/explore.py --replay`.
+Following along in the room? Open `deck/index.html` in your browser, it's the same deck that's on the projector. The bar at the bottom always shows the lesson you're on and the command to run.
+
+Wifi gone? Lessons 05 and 06 work offline from a recorded run: `python lessons/05-explore-competitors/explore.py --replay`, or play it in the browser with `deck/replay.html`.
 
 ## Setup
 
@@ -78,14 +82,13 @@ python lessons/00-setup/check.py
 You should see something like:
 
 ```
-connected in 2.1s
-browsing from: {
-  "origin": "147.53.113.103"
-}
+your laptop:      Dublin, IE
+connected in 2.5s
+the Zyte browser: Leesburg, US
 session closed. You're ready.
 ```
 
-The IP is not yours. That's the Zyte browser.
+Two different places: websites see the Zyte browser, not your laptop. Your city and the browser's will differ from these.
 
 ### 7. Trace viewer (optional)
 
@@ -114,7 +117,9 @@ shared/companies.py    looks up a company in the list from lesson 02
 shared/store.py        the SQLite database agents write to and the dashboard reads
 shared/cdp_trace.py    the raw CDP messages view in lesson 01
 lessons/NN-name/       one folder per lesson
+deck/                  the workshop deck: open deck/index.html, → for the next slide
 diagrams/              the lesson diagrams, animated: open in a browser, space for the next step
+research/              what should the model see: screenshot, markdown or accessibility snapshot, measured
 data/                  the competitor list from lesson 02, and a recorded run for --replay
 output/                what your agent captures (git ignored)
 ```

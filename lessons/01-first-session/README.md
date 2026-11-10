@@ -6,6 +6,8 @@ No coding in this lesson. You run a script and read the output.
 
 ## The mental model
 
+Animated version, part by part: open [`diagrams/01-model.html`](../../diagrams/01-model.html) in your browser and press space.
+
 The browser is not on your laptop. It runs in Zyte's cloud, behind a proxy Zyte picks for the site you're visiting. Your script only sends it commands and gets results back.
 
 ```mermaid
@@ -101,7 +103,7 @@ The full trace, every single message, is in `output/01/cdp_trace.log`.
 
 **6. What can be clicked.** Same trick, our own JS runs in the page and lists visible links and buttons. Numbered, so in lesson 04 the model can answer "click 3" instead of guessing selectors.
 
-**7. Which IP did the site see.** A new tab in the same session opens ipinfo.io. Same session, so same proxy as the page you just loaded. Look at the network name: a hosting company (M247, Latitude.sh, OVH) means a datacenter proxy, a home ISP (Comcast, Virgin Media, Vodafone) means residential. This costs one extra page load.
+**7. Where does the site think you are.** A new tab in the same session opens ipinfo.io. Same session, so same proxy as the page you just loaded. The script prints the city and country of the proxy, not the IP. That's where the website thinks you are. This costs one extra page load.
 
 **8. Close.** `Browser.close`. Session over, billing stops.
 
@@ -119,5 +121,5 @@ Then open the files in `output/01/`:
 
 - Run it on another site: `python lessons/01-first-session/first_session.py https://www.example.com`. Your own company, or one of the competitors in `data/web-scraping.json`.
 - Open `cdp_trace.log` and search for `Network.requestWillBeSent`. How many requests did one page load make?
-- Force a residential IP in Ireland and compare step 7 with your first run: `python lessons/01-first-session/first_session.py --proxy-type residential --region IE`
+- Force a residential proxy in Ireland and compare step 7 with your first run: `python lessons/01-first-session/first_session.py --proxy-type residential --region IE`
 - Try `https://quotes.toscrape.com/` (no JS) and compare `page.html` with the `/js/` one.

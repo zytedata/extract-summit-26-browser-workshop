@@ -1,9 +1,9 @@
-"""Lesson 03: open a competitor's page in a Zyte browser and ask a model what it is.
+"""Lesson 03: open a company's page in a Zyte browser and ask a model what it is.
 
-    python lessons/03-describe-a-page/describe.py                  # Apify, top of the list
-    python lessons/03-describe-a-page/describe.py Oxylabs          # any name from data/web-scraping.json
+    python lessons/03-describe-a-page/describe.py                  # zyte.com
+    python lessons/03-describe-a-page/describe.py Apify            # any name from data/web-scraping.json
     python lessons/03-describe-a-page/describe.py https://www.zyte.com/pricing/
-    python lessons/03-describe-a-page/describe.py Zyte --model google/gemini-3.5-flash-lite
+    python lessons/03-describe-a-page/describe.py Oxylabs --model google/gemini-3.5-flash-lite
 
 The browser part is the same as lesson 01: screenshot, markdown, numbered
 links. New here: all three go to a model through OpenRouter, and the model
@@ -96,7 +96,7 @@ def preview(parts):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("target", nargs="?", default="Apify", help="company name from data/web-scraping.json, or a URL")
+    parser.add_argument("target", nargs="?", default="Zyte", help="company name from data/web-scraping.json, or a URL")
     parser.add_argument("--model", help=f"OpenRouter model id, default: {llm.model_name()}")
     args = parser.parse_args()
 

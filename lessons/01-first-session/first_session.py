@@ -22,7 +22,7 @@ OUT = os.path.join("output", "01")
 trace = cdp_trace.start(os.path.join(OUT, "cdp_trace.log"))  # before connecting
 
 from shared.capture import format_links, get_links, to_markdown  # noqa: E402
-from shared.zyte_cdp import zyte_page  # noqa: E402
+from shared.zyte_cdp import where, zyte_page  # noqa: E402
 
 parser = argparse.ArgumentParser()
 parser.add_argument("url", nargs="?", default="https://quotes.toscrape.com/js/")
@@ -94,13 +94,11 @@ with zyte_page(ttl=120, proxy_type=args.proxy_type, proxy_region=args.region) as
         info(line)
     trace.show()
 
-    step("Which IP did the website see? (new tab, same session, same proxy)")
+    step("Where does the website think you are? (new tab, same session, same proxy)")
     ip_page = page.context.new_page()
     try:
         ip_page.goto("https://ipinfo.io/json", timeout=15000)
-        ip = json.loads(ip_page.inner_text("body"))
-        info(f"{ip.get('ip')}, {ip.get('city')}, {ip.get('country')}, network: {ip.get('org')}")
-        info("hosting company (M247, OVH, ...) = datacenter proxy. Home ISP (Comcast, Vodafone, ...) = residential.")
+        info(f"{where(json.loads(ip_page.inner_text('body')))}, that's where the proxy is")
     except Exception as e:
         info(f"could not check: {e}")
     trace.show(max_lines=4)

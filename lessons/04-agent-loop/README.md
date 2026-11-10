@@ -59,11 +59,13 @@ The script prints both at the end: what this run cost, and what a new browser pe
 python lessons/04-agent-loop/agent.py
 ```
 
-It starts on Apify's homepage with the goal "find the pricing and capture every price set". A good run: click Pricing, flip the monthly/annual toggle, done.
+It starts on Apify's homepage with the goal "find the pricing, capture every price set and what each plan includes". A good run: click Pricing, flip the monthly/annual toggle, done.
 
 ## What to look at
 
 **Each step.** URL, what the model thinks the page is, prices it sees, and the action with its reason: `click 48 'Pricing'`, `click 'Bill annually'`. If there's a cookie banner in the way, the model can click it away like any other button.
+
+**What each plan includes.** Next to every price the model lists what the plan gets you, in the company's own unit, the way the page says it: "$19 prepaid usage", "$0.2 per compute unit". Apify sells prepaid dollars and compute units, others sell credits, queries or tasks. We don't convert them, there's no honest common unit.
 
 **Steps so far.** Every call gets a short list of what happened before, with the prices already saved: "2. /pricing: clicked 'Bill annually'. Prices saved: Starter 19 USD/month, billed monthly; ...". Without the prices in there the model doesn't trust that it has the monthly set and flips the toggle back to check. With them it stops after 3 steps.
 
