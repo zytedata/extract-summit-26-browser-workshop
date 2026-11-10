@@ -120,7 +120,7 @@ const fit = () => { const s = Math.min(innerWidth / 1920, innerHeight / 1080);
 addEventListener('resize', fit); fit();
 
 // one flat list: intro, every lesson's slides, outro
-const groups = [{ id: 'intro', title: 'Intro', slides: INTRO }, ...LESSONS, { id: 'end', title: 'The end', slides: OUTRO }];
+const groups = [{ id: 'intro', title: 'Intro', slides: INTRO }, ...LESSONS, ...(typeof BONUS === 'undefined' ? [] : [BONUS]), { id: 'end', title: 'The end', slides: OUTRO }];
 const flat = groups.flatMap(g => g.slides.map((s, i) => ({ ...s, group: g, n: i + 1 })));
 const keyOf = s => `${s.group.id}.${s.n}`;
 
@@ -147,7 +147,7 @@ const cmdRow = (text, cls = 'cmd') => {
 const sideList = items => h('ul', { class: 'side' }, (items || []).map(s => `<li>${s}</li>`).join(''));
 const heading = (s, text) => {
   const frag = document.createDocumentFragment();
-  if (s.group.id.match(/^\d/)) frag.append(h('div', { class: 'lesson-tag' }, `${s.group.id} ${esc(s.group.title)}`));
+  if (s.group.time) frag.append(h('div', { class: 'lesson-tag' }, s.group.id === 'bonus' ? esc(s.group.title) : `${s.group.id} ${esc(s.group.title)}`));
   if (text) frag.append(h('h1', {}, text));
   return frag;
 };
@@ -169,6 +169,7 @@ const render = {
     el.append(h('h1', {}, 'Lessons'));
     const t = h('table', { class: 'agenda' });
     LESSONS.forEach(l => { const r = h('tr', {}, `<td>${l.id}</td><td>${esc(l.title)}</td><td>${l.time} min</td>`); r.onclick = () => goKey(`${l.id}.1`); t.append(r); });
+    if (typeof BONUS !== 'undefined') { const r = h('tr', { style: 'opacity:.6' }, `<td>+</td><td>${esc(BONUS.title)}</td><td>if time</td>`); r.onclick = () => goKey('bonus.1'); t.append(r); }
     el.append(t, h('div', { class: 'foot' }, `${LESSONS.reduce((a, l) => a + l.time, 0)} min of lessons, the rest is questions and slack`));
   },
   mermaid(s, el) {
@@ -231,7 +232,7 @@ function show(i, { fromEnd = false } = {}) {
   // bottom bar
   const g = s.group, lesson = g.id.match(/^\d/);
   const bar = document.getElementById('bar'); bar.replaceChildren();
-  bar.append(h('div', { class: 'where' }, lesson ? `<span>${g.id}</span>${esc(g.title)} · ${g.time} min` : esc(g.title)));
+  bar.append(h('div', { class: 'where' }, lesson ? `<span>${g.id}</span>${esc(g.title)} · ${g.time} min` : g.id === 'bonus' ? `<span>+</span>${esc(g.title)} · if time` : esc(g.title)));
   const now = h('div', { class: 'now' });
   if (g.cmd) { now.append(h('span', {}, 'run:'), h('code', {}, esc(g.cmd)), copyBtn(g.cmd)); }
   bar.append(now, h('div', { class: 'count' }, `${s.n}/${g.slides.length}`));

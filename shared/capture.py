@@ -24,10 +24,15 @@ LINKS_JS = """
   document.querySelectorAll('[data-agent-n]').forEach(el => el.removeAttribute('data-agent-n'));
   const seen = new Set();
   const out = [];
-  for (const el of document.querySelectorAll('a[href], button, [role=button], [role=tab], [role=switch]')) {
+  for (const el of document.querySelectorAll('a[href], button, [role=button], [role=tab], [role=switch], input[type=range], [role=slider]')) {
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
-    const text = (el.innerText || el.getAttribute('aria-label') || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
+    let text = (el.innerText || el.getAttribute('aria-label') || '').trim().replace(/\\s+/g, ' ').slice(0, 80);
+    if (el.type === 'range' || el.getAttribute('role') === 'slider') {
+      // a slider has no text: say where it is, so the model knows there is more to see
+      const v = +(el.value ?? el.getAttribute('aria-valuenow')), max = +(el.max || el.getAttribute('aria-valuemax'));
+      text = `${text || 'slider'} (at ${v} of ${max})`;
+    }
     const href = el.tagName === 'A' ? el.href : '';
     const key = text + '|' + href;
     if (!text || seen.has(key)) continue;
@@ -38,6 +43,25 @@ LINKS_JS = """
   return out;
 }
 """
+
+
+# Runs inside the browser. Things that can hide plans: sliders not yet at the
+# end, dropdowns, and dialogs (cookie popups) still open over the page.
+CONTROLS_JS = """
+() => {
+  const visible = el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const sliders = [...document.querySelectorAll('input[type=range], [role=slider]')].filter(visible).map(el => ({
+    at: +(el.value ?? el.getAttribute('aria-valuenow')), max: +(el.max || el.getAttribute('aria-valuemax')) }));
+  const selects = [...document.querySelectorAll('select')].filter(visible).length;
+  const dialogs = [...document.querySelectorAll('[role=dialog], [aria-modal=true], [class*=cookie i][class*=popup i], [id*=cookie i][class*=banner i]')]
+    .filter(el => { const r = el.getBoundingClientRect(); return r.width > 200 && r.height > 80; }).length;
+  return {sliders, selects, dialogs};
+}
+"""
+
+
+def get_controls(page):
+    return page.evaluate(CONTROLS_JS)
 
 
 def to_markdown(html):

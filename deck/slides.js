@@ -409,6 +409,69 @@ text = snapshot(page)`,
   ] },
 ];
 
+// Shown after lesson 06 if there's time. Its own section, so it's not in the 85 minutes.
+const BONUS = { id: 'bonus', title: 'Bonus: a judge', time: 10, cmd: 'python lessons/05-explore-competitors/explore.py --judge', slides: [
+  { kind: 'grid', h: 'Did the agent get everything?',
+    head: ['Bright Data Web Unlocker', 'The real page', 'Our agent, 2026-11-09'],
+    rows: [
+      ['Free Tier', '5K requests', '5K requests'],
+      ['Pay as you go', '$1.50 / 1K', '"$/1K requests"'],
+      ['Scale, slider stop 1', '$499 · 383K', '"slider, amount not shown"'],
+      ['Scale, slider stop 2', '$999 · 908K', '—'],
+      ['Scale, slider stop 3', '$1,999 · 2M', '—'],
+      ['Enterprise', 'custom', 'custom'],
+    ],
+    foot: 'It said "done". Prices drawn one digit per element, a cookie popup over the page, and a slider it couldn\'t move. Nothing told us' },
+  { kind: 'mermaid', h: 'Check the result, then try again',
+    code: `flowchart LR
+  agent["agent.py<br/>browses, saves plans"] --> checks["checks<br/>plain code, free"]
+  checks --> judge["judge<br/>a model, ~$0.002"]
+  judge --> q{"anything<br/>missing?"}
+  q -- "no" --> done["done"]
+  q -- "yes: the hint" --> agent`,
+    side: ['<b>Checks</b>: a price with no number, a slider left before its last stop, no prices, out of steps',
+           '<b>Judge</b>: the steps, the saved plans, the last page. One question: is a plan or a price missing?',
+           '<b>Retry</b>: the hint goes into the agent\'s prompt. The agent learns from its own run',
+           'And a new action: <code>slide</code>. Sliders show up as <code>slider (at 0 of 2)</code>'] },
+  { kind: 'output', h: 'The judge on a half-explored page', label: 'python lessons/05-explore-competitors/judge.py output/05/brightdata.com.attempt1',
+    out: `<b>Steps:</b>
+  <m>...</m>
+  3. brightdata.com/: click on 40 'Unlocker API ...' failed, opened its URL instead
+  4. brightdata.com/pricing/web-unlocker: moved slider 73 one step
+  5. brightdata.com/pricing/web-unlocker: done
+
+<b>Checks:</b>
+  - A slider on the last page is at 1 of 2: there are tiers the agent didn't see.
+
+<b>Judge: NOT complete</b>  <m>(8.8s, $0.0022)</m>
+  - <c>missing:</c> Scale slider has at least one tier beyond the two saved ($499 and $999);
+    the slider sits mid-track, so the rightmost tier is unseen
+  - <m>note: Enterprise includes list omits 'Priority support' and 'SSO'. Does not block.</m>
+  - <m>note: Pay as you go $1.50 per 1K requests and Free Tier 5K requests match the page.</m>
+
+<b>Hint for the next attempt:</b> <g>On https://brightdata.com/pricing/web-unlocker, keep dragging
+the Scale slider to its far right end, one step at a time, and after each step save the
+monthly price and the requests included and additional-request rate shown under Scale.</g>
+
+<m># attempt 2, with that hint, saved: $499 · 383K · $1.30/1K   $999 · 908K · $1.10/1K
+#                                   $1,999 · 2M · $1.00/1K</m>`,
+    side: ['The check is a fact: the slider is at 1 of 2. The model adds what it means and what to do',
+           'Notes don\'t block. A short feature list isn\'t worth a second run',
+           'The hint is all the agent gets. Attempt 2 stepped to the end'] },
+  { kind: 'run', h: 'Try it',
+    cmds: ['python lessons/05-explore-competitors/explore.py "Bright Data" Apify --judge'],
+    alt: ['python lessons/05-explore-competitors/judge.py output/05/brightdata.com   # review one finished run'],
+    note: 'The dashboard gets a "Judge" table: verdict, what was missing, the hint. Attempt 1 stays in <code>output/05/&lt;site&gt;.attempt1/</code>' },
+  { kind: 'points', h: 'What we learned building it',
+    items: [
+      '<b>Our first judge was too strict.</b> Duplicates, short feature lists: "not complete" 4 times of 4. Apify ran twice for nothing',
+      '<b>Block only on what\'s missing.</b> A retry is a whole agent run: 3-6 browser units. A review is $0.002',
+      '<b>Give the judge the history.</b> It sees the last page only: annual prices showing, monthly saved two steps ago. Tell it what the agent did',
+      '<b>Checks are facts, the model explains them.</b> "Slider at 1 of 2" decides. The model writes the hint',
+      '<b>The new action fixed more than the judge.</b> With <code>slide</code>, the agent stepped through all three tiers on its own',
+    ] },
+] };
+
 const OUTRO = [
   { kind: 'title', h: 'Thanks', sub: 'Take the repo home, the code is short enough to read end to end', qr: true },
 ];

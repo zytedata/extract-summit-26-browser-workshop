@@ -182,6 +182,19 @@ def dashboard():
         column_config={"url": st.column_config.LinkColumn("page")},
     )
 
+    # Bonus from lesson 05 --judge: what the judge said about each result.
+    try:
+        reviews = query("SELECT site, attempt, complete, checks, issues, hint FROM reviews WHERE run_id=? ORDER BY site, attempt", (run.run_id,))
+    except Exception:  # databases from before the judge have no reviews table
+        reviews = pd.DataFrame()
+    if not reviews.empty:
+        st.subheader("Judge")
+        st.caption("A model reviewed each result against the last page. Not complete: the agent ran again with its hint")
+        reviews["complete"] = reviews.complete.map({1: "yes", 0: "no"})
+        for col in ("checks", "issues"):
+            reviews[col] = reviews[col].map(lambda raw: " · ".join(json.loads(raw)) if raw else "")
+        st.dataframe(reviews.rename(columns={"issues": "missing"}), hide_index=True, width="stretch")
+
     st.subheader("What the research cost")
     cost = agents[["company", "status", "page_status", "step", "browser_seconds", "units", "model_usd"]]
     st.dataframe(cost.rename(columns={"step": "steps", "page_status": "page status"}), hide_index=True, width="stretch")

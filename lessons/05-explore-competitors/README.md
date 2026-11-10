@@ -86,6 +86,27 @@ Files in `output/05/`:
 | `summary.json` | the table above, as data |
 | `../workshop.db` | every step and price of every run, what the dashboard reads. Lesson 06 starts from here |
 
+## Bonus: a judge, and a second attempt
+
+How do you know the agent got everything? On Bright Data's Web Unlocker page the "Scale" plan is a slider with three stops: $499, $999 and $1,999 a month. An agent that never moves the slider saves one tier and says done.
+
+```bash
+python lessons/05-explore-competitors/explore.py --judge
+```
+
+After each agent finishes, its result gets reviewed in two layers:
+
+1. **Checks**, plain code in [`judge.py`](judge.py), free. Certain gaps: a price with no number in it (`$/1K requests`), a slider left before its last stop, no prices, out of steps. Worth a look, but not blocking: a popup still open, a dropdown on the page.
+2. **The judge**, a model. It gets the steps the agent took, the plans it saved, the checks, and the last page (screenshot + text), and answers one question: is a plan, a price set or a price missing? Duplicates, wording and short feature lists don't count.
+
+Something missing? The agent runs again with the judge's hint in its prompt ("step the Scale slider through every position, it's at 1 of 2 now"). That's the agent learning from its own run. One retry by default, `--retries 2` for more.
+
+The agent can move sliders now: they show up in its list as `slider (at 0 of 2)`, and it answers `slide` instead of `click`. That's what fixed Bright Data. In our test run the agent stepped through all three tiers on its own and the judge passed it on the first attempt. Before, the judge caught the half-explored slider and the retry got all three.
+
+What it costs: a review is one model call, about $0.002. A retry is a whole second agent run, so the checks and the judge are tuned to block only on missing prices. Our first judge also complained about duplicates and short feature lists: it said "not complete" four times out of four and retried Apify for nothing.
+
+Try it on one page: `python lessons/05-explore-competitors/judge.py output/05/brightdata.com`. The dashboard shows the reviews in a "Judge" table.
+
 ## No wifi?
 
 Replay a recorded run instead. It plays a saved run into the database with its original timing, so the dashboard fills in exactly as it would live. No Zyte, no OpenRouter, no network:

@@ -52,6 +52,8 @@ SKIP_DOMAINS = {
     "wikipedia.org", "google.com", "bing.com", "apple.com", "amazon.com",
     "github.com", "medium.com", "bit.ly", "t.co", "g2.com", "capterra.com",
     "trustpilot.com", "gartner.com", "producthunt.com", "w3.org",
+    # ad and affiliate redirects that list articles link through
+    "googleadservices.com", "doubleclick.net", "technologyadvice.com",
 }
 
 # Fewer numbered entries than this and it's not a list article
@@ -93,7 +95,31 @@ def real_url(href):
     return base64.urlsafe_b64decode(b64 + "=" * (-len(b64) % 4)).decode()
 
 
-def search(query):
+# Words that say nothing about the topic, so they don't count when we check
+# whether Bing answered the question we asked.
+FILLER = {"best", "top", "companies", "services", "providers", "list", "compared", "official", "site"}
+
+
+def search(query, attempts=4):
+    """Bing results for query: [{title, url, snippet}].
+
+    Now and then Bing answers with results for something else entirely (in
+    November 2026: a shop called BESTSECRET and restaurants in Dacula, GA),
+    even though the page shows our query in the search box. It comes and goes,
+    from 1 in 10 requests to 9 in 10. So check that the results are about the
+    query, and ask again if they aren't. Each try goes out through a new proxy.
+    Still off topic after every try: no results, rather than junk.
+    """
+    topic = [w for w in query.lower().split() if w not in FILLER]
+    for _ in range(attempts):
+        results = _bing(query)
+        on_topic = [r for r in results if any(w in (r["title"] + " " + r["url"]).lower() for w in topic)]
+        if results and len(on_topic) >= len(results) / 2:
+            return results
+    return []
+
+
+def _bing(query):
     url = f"https://www.bing.com/search?q={quote_plus(query)}&setlang=en&cc=US"
     html = base64.b64decode(zyte({"url": url, "httpResponseBody": True})["httpResponseBody"]).decode("utf-8", "replace")
     soup = BeautifulSoup(html, "html.parser")

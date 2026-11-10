@@ -69,6 +69,8 @@ It starts on Apify's homepage with the goal "find the pricing, capture every pri
 
 **Steps so far.** Every call gets a short list of what happened before, with the prices already saved: "2. /pricing: clicked 'Bill annually'. Prices saved: Starter 19 USD/month, billed monthly; ...". Without the prices in there the model doesn't trust that it has the monthly set and flips the toggle back to check. With them it stops after 3 steps.
 
+**Sliders.** Some plans hide tiers behind a slider (Bright Data: $499, $999, $1,999). Sliders show up in the list as `slider (at 0 of 2)`, and the model answers `slide` to move one a step. Our code focuses it and presses the right arrow.
+
 **When a click fails.** Links inside a dropdown menu are on the page but not clickable until the menu opens on hover (Oxylabs, "Explore subscriptions"). The click times out after 5 seconds, and if it's a link, our code opens its URL instead. The model doesn't need to know.
 
 **The cost.** Steps, page loads, seconds the browser was open, units. Tokens and dollars for the model. And the comparison with a new browser per step.

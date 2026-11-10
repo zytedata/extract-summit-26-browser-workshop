@@ -4,11 +4,12 @@ The dashboard (lesson 06) reads it every couple of seconds, so you see the
 agents work while they run. Every run adds rows, nothing is replaced, so
 running it again next week gives you history.
 
-Four tables:
+Five tables:
   runs     one row per explore.py (or single agent.py) run
   agents   one row per competitor in a run: status, steps, cost
   steps    one row per look-and-act step: url, reason, action
   prices   one row per price an agent saw on a page, with what the plan includes
+  reviews  one row per judge review of an agent's result (lesson 05 --judge)
 
 WAL mode lets several agent processes write while the dashboard reads.
 """
@@ -42,6 +43,10 @@ CREATE TABLE IF NOT EXISTS prices (
   run_id TEXT, site TEXT, company TEXT, step INTEGER, ts REAL,
   plan TEXT, amount TEXT, currency TEXT, period TEXT,
   usd_month REAL, billing TEXT, kind TEXT, url TEXT, includes TEXT
+);
+CREATE TABLE IF NOT EXISTS reviews (
+  run_id TEXT, site TEXT, attempt INTEGER, ts REAL, complete INTEGER,
+  checks TEXT, issues TEXT, hint TEXT, model_usd REAL
 );
 """
 
@@ -92,3 +97,8 @@ def prices(db, run_id, site, company, n, url, items):
             for p in items
         ],
     )
+
+
+def review(db, run_id, site, attempt, complete, checks, issues, hint, model_usd):
+    db.execute("INSERT INTO reviews VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+               (run_id, site, attempt, time.time(), int(complete), json.dumps(checks), json.dumps(issues), hint, model_usd))

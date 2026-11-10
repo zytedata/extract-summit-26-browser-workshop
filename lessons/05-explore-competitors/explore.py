@@ -5,6 +5,7 @@
     python lessons/05-explore-competitors/explore.py --top 8 --parallel 4
     python lessons/05-explore-competitors/explore.py --replay        # no network: replay a recorded run
     python lessons/05-explore-competitors/explore.py --save-sample   # keep the last run as the recording
+    python lessons/05-explore-competitors/explore.py --judge         # bonus: review each result, retry once with the hint
 
 Every competitor is its own agent.py process with its own Zyte browser. They
 all write to output/workshop.db, which the dashboard reads:
@@ -14,6 +15,7 @@ all write to output/workshop.db, which the dashboard reads:
 import argparse
 import json
 import os
+import shutil
 import signal
 import sqlite3
 import subprocess
@@ -24,6 +26,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from shared import llm, store  # noqa: E402
 from shared.companies import PATH as COMPANIES, pick_url  # noqa: E402
+
+sys.path.insert(0, os.path.dirname(__file__))
+import judge  # noqa: E402
 
 AGENT = os.path.join(os.path.dirname(__file__), "..", "04-agent-loop", "agent.py")
 OUT = os.path.join("output", "05")
@@ -60,6 +65,9 @@ def live(args, db):
 
     queue = list(names)
     running = {}  # name -> (process, log file)
+    attempts = {name: 0 for name in names}
+    hints = {}  # name -> the judge's hint for the next attempt
+    spent = {}  # name -> browser seconds, units, model $ of earlier attempts: a retry costs too
     t0 = time.time()
     last = {}
 
@@ -69,7 +77,42 @@ def live(args, db):
         cmd = [sys.executable, AGENT, name, "--out", OUT, "--run-id", run_id, "--max-steps", str(args.max_steps)]
         if args.model:
             cmd += ["--model", args.model]
+        if name in hints:
+            cmd += ["--hint", hints[name]]
+        attempts[name] += 1
         running[name] = (subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT), log)
+
+    def check(name):
+        """Bonus: the judge reviews what the agent found. Not complete and a retry
+        left? Run the agent again with the judge's hint."""
+        site, n = sites[name], attempts[name]
+        store.agent(db, run_id, site, status=f"judge is reviewing attempt {n}")
+        try:
+            r = judge.review(os.path.join(OUT, site), model=args.model)
+        except Exception as e:  # a review that fails doesn't stop the run
+            print(f"[{time.time() - t0:5.1f}s] {name:<14} {YELLOW}review failed: {e}{RESET}")
+            store.agent(db, run_id, site, status="done")
+            return
+        store.review(db, run_id, site, n, r["complete"], r["checks"], r["issues"], r["hint"], r["cost_usd"])
+        verdict = f"{GREEN}complete{RESET}" if r["complete"] else f"{YELLOW}not complete: {r['hint']}{RESET}"
+        print(f"[{time.time() - t0:5.1f}s] {name:<14} judge, attempt {n}: {verdict}")
+        if not r["complete"] and n <= args.retries:
+            # keep attempt n next to the new one, and let the new attempt's prices replace these
+            shutil.rmtree(os.path.join(OUT, f"{site}.attempt{n}"), ignore_errors=True)
+            os.replace(os.path.join(OUT, site), os.path.join(OUT, f"{site}.attempt{n}"))
+            db.execute("DELETE FROM prices WHERE run_id=? AND site=?", (run_id, site))
+            row = db.execute("SELECT browser_seconds, units, model_usd FROM agents WHERE run_id=? AND site=?", (run_id, site)).fetchone()
+            before = spent.get(name, (0, 0, 0))
+            spent[name] = (before[0] + (row[0] or 0), before[1] + (row[1] or 0), before[2] + (row[2] or 0) + (r["cost_usd"] or 0))
+            hints[name] = r["hint"]
+            store.agent(db, run_id, site, status=f"retry with the judge's hint")
+            queue.insert(0, name)
+        else:
+            row = db.execute("SELECT browser_seconds, units, model_usd FROM agents WHERE run_id=? AND site=?", (run_id, site)).fetchone()
+            s0, u0, d0 = spent.get(name, (0, 0, 0))
+            store.agent(db, run_id, site, status="done" if r["complete"] else "done, judge not happy",
+                        browser_seconds=round((row[0] or 0) + s0, 1), units=(row[1] or 0) + u0,
+                        model_usd=round((row[2] or 0) + d0 + (r["cost_usd"] or 0), 5))
 
     try:
         while queue or running:
@@ -87,6 +130,8 @@ def live(args, db):
                     row = db.execute("SELECT status FROM agents WHERE run_id=? AND site=?", (run_id, sites[name])).fetchone()
                     if proc.returncode and not row["status"].startswith(FINISHED):
                         store.agent(db, run_id, sites[name], status="error", error=f"exit code {proc.returncode}")
+                    elif args.judge:
+                        check(name)
             # Print what changed since the last look
             for row in db.execute("SELECT company, status FROM agents WHERE run_id=? ORDER BY started", (run_id,)):
                 if last.get(row["company"]) != row["status"]:
@@ -103,6 +148,11 @@ def live(args, db):
         raise
 
     summary(db, run_id, time.time() - t0)
+    if args.judge:
+        print(f"\n{BOLD}Reviews{RESET}")
+        for r in db.execute("SELECT site, attempt, complete, hint, model_usd FROM reviews WHERE run_id=? ORDER BY site, attempt", (run_id,)):
+            print(f"  {r['site']:<16} attempt {r['attempt']}: {'complete' if r['complete'] else 'not complete'}"
+                  f"  ${r['model_usd'] or 0:.4f}" + (f"\n  {'':<16} hint: {r['hint']}" if r['hint'] and not r['complete'] else ""))
 
 
 def summary(db, run_id, wall, recorded=False):
@@ -208,6 +258,8 @@ def main():
     parser.add_argument("--replay", nargs="?", const=SAMPLE, help="replay a recorded run, no network")
     parser.add_argument("--fast", action="store_true", help="with --replay: 10x speed")
     parser.add_argument("--save-sample", action="store_true", help="keep the last live run as data/sample-run.db")
+    parser.add_argument("--judge", action="store_true", help="bonus: review each result with a model, retry with its hint")
+    parser.add_argument("--retries", type=int, default=1, help="with --judge: how many extra attempts per competitor")
     args = parser.parse_args()
 
     db = store.connect()

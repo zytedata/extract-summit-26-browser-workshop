@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 from shared import llm, store  # noqa: E402
-from shared.capture import format_links, get_links, to_markdown  # noqa: E402
+from shared.capture import format_links, get_controls, get_links, to_markdown  # noqa: E402
 from shared.companies import pick_url  # noqa: E402
 from shared.zyte_cdp import open_url, settle, trace_step, zyte_page  # noqa: E402
 
@@ -44,6 +44,8 @@ period. Then pick one action:
 - click: a link or button by its number. To go somewhere, open a menu, flip a
   toggle (monthly/annual, currency), or close a cookie banner that is in the way.
 - scroll: what you need is probably further down this page.
+- slide: move a slider (by its number) one step to the right, to see the next
+  tier of a plan. The list shows where each slider is ("at 0 of 2").
 - done: the goal is reached, or it can't be reached from here.
 
 Take the most direct path. Don't repeat a click unless the page changed.
@@ -96,7 +98,7 @@ SCHEMA = {
         },
         # Reason first, then the action: the model writes fields in order.
         "why": {"type": "string", "description": "one sentence: what to do next and why"},
-        "action": {"type": "string", "enum": ["click", "scroll", "done"]},
+        "action": {"type": "string", "enum": ["click", "scroll", "slide", "done"]},
         "link": {"type": ["integer", "null"], "description": "number of the link or button to click, null otherwise"},
     },
     "required": ["page_type", "description", "prices", "why", "action", "link"],
@@ -119,6 +121,7 @@ def main():
     parser.add_argument("--goal", default=GOAL)
     parser.add_argument("--model", help=f"OpenRouter model id, default: {llm.model_name()}")
     parser.add_argument("--max-steps", type=int, default=6)
+    parser.add_argument("--hint", help="notes from a review of an earlier attempt (lesson 05 --judge)")
     parser.add_argument("--out", default=os.path.join("output", "04"), help="folder for the journey, one subfolder per site")
     parser.add_argument("--run-id", default=os.environ.get("WORKSHOP_RUN_ID"), help="add to this run in the database (explore.py sets it)")
     args = parser.parse_args()
@@ -197,6 +200,7 @@ def run(args, url, site, company, out, model, t0, db, run_id):
             shot = page.screenshot(type="jpeg", quality=70)
             md = to_markdown(page.content())
             links = get_links(page)
+            controls = get_controls(page)  # for the review in lesson 05: sliders, dropdowns, open dialogs
             info(f"screenshot {len(shot) // 1024} KB, markdown {len(md) // 1024} KB, {len(links)} links and buttons")
             latest = os.path.join(out, "latest.jpg")  # what the dashboard shows right now
             with open(latest, "wb") as f:
@@ -205,7 +209,9 @@ def run(args, url, site, company, out, model, t0, db, run_id):
 
             so_far = "\n".join(history) or "none, this is the first page"
             parts = [
-                llm.text_part(f"Goal: {args.goal}\n\nSteps so far:\n{so_far}"),
+                llm.text_part(f"Goal: {args.goal}\n\n"
+                              + (f"A review of an earlier attempt said: {args.hint}\n\n" if args.hint else "")
+                              + f"Steps so far:\n{so_far}"),
                 llm.image_part(shot),
                 llm.text_part(f"URL: {page.url}\n\n# Page text (markdown)\n\n{md[:MAX_MARKDOWN]}"),
                 llm.text_part(f"# Links and buttons\n\n{format_links(links[:MAX_LINKS])}"),
@@ -228,7 +234,7 @@ def run(args, url, site, company, out, model, t0, db, run_id):
                 f.write(md)
 
             target = None
-            if answer["action"] == "click":
+            if answer["action"] in ("click", "slide"):
                 k = answer["link"]
                 target = links[k - 1] if k and 1 <= k <= len(links) else None
             record = {
@@ -242,6 +248,7 @@ def run(args, url, site, company, out, model, t0, db, run_id):
                 "link_text": target["text"] if target else None,
                 "why": answer["why"],
                 "screenshot": name + ".jpg",
+                "controls": controls,
                 "model": stats,
             }
 
@@ -250,7 +257,7 @@ def run(args, url, site, company, out, model, t0, db, run_id):
             saved = "; ".join(f"{p['plan']} {p['amount']} {p['currency']}/{p['period']}" for p in answer["prices"])
             saved = f" Prices saved: {saved}." if saved else ""
 
-            label = f"click {answer['link']} {target['text']!r}" if target else answer["action"]
+            label = f"{answer['action']} {answer['link']} {target['text']!r}" if target else answer["action"]
             store.step(db, run_id, site, step=n, url=page.url, status_code=codes[-1] if codes else None,
                        page_type=answer["page_type"], description=answer["description"], action=answer["action"],
                        link_text=target["text"] if target else None, why=answer["why"],
@@ -275,7 +282,20 @@ def run(args, url, site, company, out, model, t0, db, run_id):
 
             before = page.url
             tracing.group(f"Step {n}: {label}. Model: {answer['why']}")
-            if answer["action"] == "scroll":
+            if answer["action"] == "slide" and target is not None:
+                # A slider isn't clicked, it's moved: focus it and press the right arrow once.
+                step(OPEN, f"Step {n}: move slider {answer['link']} one step")
+                try:
+                    el = page.locator(f'[data-agent-n="{answer["link"]}"]').first
+                    el.focus(timeout=5_000)
+                    el.press("ArrowRight")
+                    page.wait_for_timeout(1500)  # the price animates to the new tier
+                    did = f"moved slider {answer['link']} one step"
+                    in_page_clicks += 1
+                except Exception as e:
+                    info(f"{YELLOW}could not move it: {str(e).splitlines()[0]}{RESET}")
+                    did = f"tried to move slider {answer['link']}, failed"
+            elif answer["action"] == "scroll":
                 step(OPEN, f"Step {n}: scroll down")
                 page.mouse.wheel(0, 900)
                 page.wait_for_timeout(800)
